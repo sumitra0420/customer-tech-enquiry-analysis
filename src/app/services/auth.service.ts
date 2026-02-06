@@ -40,6 +40,7 @@ export class AuthService {
    */
   async checkAuthStatus(): Promise<void> {
     if (!this.isBrowser) return;
+    console.log('Checking authentication status...');
 
     try {
       const user = await getCurrentUser();
@@ -64,6 +65,7 @@ export class AuthService {
    * Sign up a new user
    */
   async signUp(email: string, password: string, name: string): Promise<{ success: boolean; message: string }> {
+    console.log('Attempting to sign up user:', email);
     try {
       const signUpInput: SignUpInput = {
         username: email,
@@ -94,6 +96,7 @@ export class AuthService {
    * Confirm sign up with verification code
    */
   async confirmSignUp(email: string, code: string): Promise<{ success: boolean; message: string }> {
+    console.log('Attempting to confirm sign up for user:', email);
     try {
       const confirmInput: ConfirmSignUpInput = {
         username: email,
@@ -118,6 +121,7 @@ export class AuthService {
    * Sign in a user
    */
   async signIn(email: string, password: string): Promise<{ success: boolean; message: string }> {
+    console.log('Attempting to sign in user:', email);
     try {
       const signInInput: SignInInput = {
         username: email,
@@ -163,6 +167,7 @@ export class AuthService {
    * Get the current user's JWT token for API calls
    */
   async getIdToken(): Promise<string | null> {
+    console.log('Fetching ID token for current user...');
     try {
       const session = await fetchAuthSession();
       return session.tokens?.idToken?.toString() || null;

@@ -1,5 +1,5 @@
 import { ResourcesConfig } from 'aws-amplify';
-import { environments } from './app/environments/environments'; 
+import { environments } from './environments/environments'; 
 
 // Stores your AWS Cognito credentials
 export const amplifyConfig: ResourcesConfig = {

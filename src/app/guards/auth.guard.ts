@@ -1,32 +1,46 @@
-import { inject } from '@angular/core';
-import { Router } from '@angular/router';
+import { inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
-export const authGuard = () => {
+export const authGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
+  const platformId = inject(PLATFORM_ID);
+  console.log('AuthGuard: Checking authentication status...');
 
-  if (authService.isAuthenticated()) {
+  // Skip auth check on server
+  if (!isPlatformBrowser(platformId)) {
+    console.log('AuthGuard: Running on server, skipping auth check.');
     return true;
   }
-  console.log('User is not authenticated, redirecting to auth page.');
+
+  if (authService.isAuthenticated()) {
+    console.log('AuthGuard: User is authenticated, allowing access.');
+    return true;
+  }
+  console.log('AuthGuard: User is not authenticated, redirecting to /auth.');
 
   router.navigate(['/auth']);
   return false;
 };
 
-export const redirectIfAuthenticatedGuard = async () => {
+export const redirectIfAuthenticatedGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);
+  const platformId = inject(PLATFORM_ID);
+  console.log('RedirectIfAuthenticatedGuard: Checking authentication status...');
 
-  // Wait for auth check to complete
-  await authService.checkAuthStatus();
-
-  if (authService.isAuthenticated()) {
-    console.log('User is authenticated, redirecting to home page.');
-    router.navigate(['']);
-    return false;
+  // Skip auth check on server
+  if (!isPlatformBrowser(platformId)) {
+    return true;
   }
 
-  return true;
+  return authService.checkAuthStatus().then(() => {
+    if (authService.isAuthenticated()) {
+      router.navigate(['/analyse']);
+      return false;
+    }
+    return true;
+  });
 };

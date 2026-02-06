@@ -35,7 +35,7 @@ export class AuthComponent {
   ) {
     // Check if user is already authenticated
     if (this.isBrowser && this.authService.isAuthenticated()) {
-      this.router.navigate(['/events']);
+      this.router.navigate(['/analyse']);
     }
   }
 
@@ -56,7 +56,7 @@ export class AuthComponent {
     this.isLoading.set(false);
 
     if (result.success) {
-      this.router.navigate(['/events']);
+      this.router.navigate(['/analyse']);
     } else {
       this.errorMessage.set(result.message);
     }

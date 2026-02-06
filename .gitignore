@@ -7,9 +7,12 @@ terraform/*.tfstate.backup
 terraform/*.tfvars                                                                                                                                                                       
 terraform/.terraform.lock.hcl                                                                                                                                                            
                                                                                                                                                                                            
-# Lambda artifacts                                                                                                                                                                       
-lambdas/**/node_modules/                                                                                                                                                                 
-lambdas/**/*.zip     
+# Lambda artifacts
+lambdas/**/node_modules/
+lambdas/**/*.zip
+
+# Generated environment config (created by Terraform)
+/src/environments/     
 
 # Compiled output
 /dist
@@ -52,4 +55,7 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Tailwind debug logs
+tailwindcss-*.log
 

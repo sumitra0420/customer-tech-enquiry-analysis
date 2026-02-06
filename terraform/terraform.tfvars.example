@@ -1,0 +1,7 @@
+aws_region       = "ap-southeast-2"                                                                                      
+project_name     = "tech-enquiry"                                                                                        
+environment      = "prod"                                                                                                
+db_name          = "enquiries"                                                                                           
+db_username      = "dbadmin"                                                                                             
+db_password      = "CHANGE_ME_TO_A_STRONG_PASSWORD"                                                                      
+bedrock_model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
