@@ -46,6 +46,7 @@ export class AnalyseComponent {
         this.router.navigate(['/auth']);
         return;
       }
+      console.log('Sending analysis request with token:', token);
 
       const response = await fetch(`${environments.apiUrl}/enquiries/temp/analyse`, {
         method: 'POST',
@@ -55,6 +56,7 @@ export class AnalyseComponent {
         },
         body: JSON.stringify({ text })
       });
+      console.log('API response status:', response.status);
 
       if (!response.ok) {
         throw new Error('Analysis failed. Please try again.');

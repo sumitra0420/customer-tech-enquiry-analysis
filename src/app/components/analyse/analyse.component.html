@@ -1,11 +1,11 @@
 <div class="min-h-screen bg-gray-50">
   <!-- Header -->
   <header class="bg-white shadow">
-    <div class="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-      <h1 class="text-xl font-bold text-gray-900">Tech Enquiry Analysis</h1>
+    <div class="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-gray-900">Tech Enquiry Analysis</h1>
       <div class="flex items-center gap-4">
-        <span class="text-gray-600">{{ userName }}</span>
-        <button (click)="onSignOut()" class="text-sm text-red-600 hover:text-red-800">
+        <span class="text-gray-600 text-lg">{{ userName }}</span>
+        <button (click)="onSignOut()" class="text-base text-red-600 hover:text-red-800">
           Sign Out
         </button>
       </div>
@@ -13,20 +13,25 @@
   </header>
 
   <!-- Main Content -->
-  <main class="max-w-4xl mx-auto px-4 py-8">
+  <main class="max-w-7xl mx-auto px-6 py-8">
     <!-- Input Section -->
-    <div class="bg-white rounded-lg shadow p-6 mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">Customer Enquiry</h2>
+    <div class="bg-white rounded-lg shadow p-8 mb-8">
+      <h2 class="text-xl font-semibold text-gray-900 mb-2">Customer Enquiry</h2>
+      <p class="text-gray-600 mb-4">
+        For best results, ensure the enquiry includes:
+        <span class="font-medium">Product model</span>, and
+        <span class="font-medium">Proof of purchase or Purchase Date</span>.
+      </p>
       <textarea
         [value]="enquiryText()"
         (input)="enquiryText.set($any($event.target).value)"
         placeholder="Paste the customer enquiry here..."
-        rows="8"
-        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+        rows="10"
+        class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
       ></textarea>
 
       @if (errorMessage()) {
-        <div class="mt-3 text-red-600 text-sm">
+        <div class="mt-3 text-red-600 text-base">
           {{ errorMessage() }}
         </div>
       }
@@ -34,7 +39,7 @@
       <button
         (click)="onAnalyse()"
         [disabled]="isLoading() || !enquiryText()"
-        class="mt-4 w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="mt-6 w-full bg-indigo-600 text-white py-3 px-6 text-lg rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {{ isLoading() ? 'Analysing...' : 'Analyse Enquiry' }}
       </button>
@@ -42,12 +47,13 @@
 
     <!-- Result Section -->
     @if (analysisResult()) {
-      <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-lg font-semibold text-gray-900 mb-4">Analysis Result</h2>
-        <div class="prose max-w-none">
-          <pre class="whitespace-pre-wrap text-gray-700 bg-gray-50 p-4 rounded-md">{{
-            analysisResult()
-          }}</pre>
+      <div class="bg-white rounded-lg shadow p-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-4">Analysis Result</h2>
+        <div class="prose prose-lg max-w-none">
+          <pre
+            class="whitespace-pre-wrap text-gray-700 text-base leading-relaxed bg-gray-50 p-6 rounded-md"
+            >{{ analysisResult() }}</pre
+          >
         </div>
       </div>
     }
