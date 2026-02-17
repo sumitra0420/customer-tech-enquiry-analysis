@@ -1,7 +1,8 @@
-module "vpc" {
-  source       = "./modules/vpc"
-  project_name = var.project_name
-}
+# module "vpc" {
+#   source       = "./modules/vpc"
+#   project_name = var.project_name
+# }
+
 module "cognito" {
   source       = "./modules/cognito"
   project_name = var.project_name
@@ -34,8 +35,14 @@ module "lambda" {
   s3_bucket_name           = module.s3.bucket_name
   s3_bucket_arn            = module.s3.bucket_arn
   bedrock_model_id         = var.bedrock_model_id
-  private_subnet_ids       = module.vpc.private_subnet_ids
-  lambda_security_group_id = module.vpc.lambda_security_group_id
+  # private_subnet_ids       = module.vpc.private_subnet_ids
+  # lambda_security_group_id = module.vpc.lambda_security_group_id
+}
+
+module "frontend" {
+  source       = "./modules/frontend"
+  project_name = var.project_name
+  environment  = var.environment
 }
 
 module "api_gateway" {

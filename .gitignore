@@ -11,6 +11,9 @@ terraform/.terraform.lock.hcl
 lambdas/**/node_modules/
 lambdas/**/*.zip
 
+# S3 data (internal company data)
+s3-data/
+
 # Generated environment config (created by Terraform)
 /src/environments/     
 

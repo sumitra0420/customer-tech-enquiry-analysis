@@ -34,15 +34,6 @@ resource "aws_iam_role_policy" "lambda" {
       {
         Effect = "Allow"
         Action = [
-          "ec2:CreateNetworkInterface",
-          "ec2:DescribeNetworkInterfaces",
-          "ec2:DeleteNetworkInterface"
-        ]
-        Resource = "*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
           "s3:GetObject",
           "s3:ListBucket"
         ]
@@ -110,10 +101,8 @@ resource "aws_lambda_function" "functions" {
   filename         = data.archive_file.placeholder.output_path
   source_code_hash = data.archive_file.placeholder.output_base64sha256
 
-  vpc_config {
-    subnet_ids         = var.private_subnet_ids
-    security_group_ids = [var.lambda_security_group_id]
-  }
+  # VPC config removed - Lambda runs outside VPC to avoid NAT Gateway costs
+  # Will need to re-add when RDS is enabled
 
   environment {
     variables = local.common_env_vars

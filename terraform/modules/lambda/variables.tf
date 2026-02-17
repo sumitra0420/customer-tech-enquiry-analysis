@@ -35,10 +35,13 @@ variable "bedrock_model_id" {
   type = string
 }
 
+# VPC variables - kept for future RDS integration but not used currently
 variable "private_subnet_ids" {
-  type = list(string)
+  type    = list(string)
+  default = []
 }
 
 variable "lambda_security_group_id" {
-  type = string
+  type    = string
+  default = ""
 }
