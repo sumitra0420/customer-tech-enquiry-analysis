@@ -50,6 +50,17 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "personal": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environments.ts",
+                  "with": "src/environments/environments.personal.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -62,6 +73,9 @@
             },
             "development": {
               "buildTarget": "customer-tech-enquiry-analysis:build:development"
+            },
+            "personal": {
+              "buildTarget": "customer-tech-enquiry-analysis:build:personal"
             }
           },
           "defaultConfiguration": "development"

@@ -62,3 +62,6 @@ Thumbs.db
 # Tailwind debug logs
 tailwindcss-*.log
 
+# data folder
+data/
+

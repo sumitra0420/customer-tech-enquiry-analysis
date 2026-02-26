@@ -89,17 +89,30 @@ async function loadWarrantyData() {
 
   const response = await s3Client.send(new GetObjectCommand({
     Bucket: process.env.S3_BUCKET,
-    Key: 'product_warranty_final.csv',
+    Key: 'product_data.csv',
   }));
 
   const csvText = await response.Body.transformToString();
   const lines = csvText.split('\n');
 
   cachedWarrantyData = {};
+  // CSV columns: Name, Display Name, Model Description, Warranty (Month), Product Type
   lines.slice(1).filter(line => line.trim()).forEach(line => {
-    const [model, years] = line.split(',');
-    if (model && years) {
-      cachedWarrantyData[model.trim().toUpperCase()] = parseInt(years.trim());
+    const values = line.match(/(".*?"|[^,]+)/g) || [];
+    const name = (values[0] || '').replace(/^"|"$/g, '').trim().toUpperCase();
+    const displayName = (values[1] || '').replace(/^"|"$/g, '').trim().toUpperCase();
+    const warrantyMonths = parseInt((values[3] || '').replace(/^"|"$/g, '').trim());
+    const productType = (values[4] || '').replace(/^"|"$/g, '').trim();
+
+    if (name && warrantyMonths) {
+      cachedWarrantyData[name] = { months: warrantyMonths, productType };
+    }
+    // Also index by display name (extract model from "MODEL DESCRIPTION - CODE" format)
+    if (displayName) {
+      const modelMatch = displayName.match(/^([A-Z0-9][A-Z0-9\-\+\/]+)/);
+      if (modelMatch) {
+        cachedWarrantyData[modelMatch[1]] = { months: warrantyMonths, productType };
+      }
     }
   });
 
@@ -109,14 +122,16 @@ async function loadWarrantyData() {
 function lookupWarranty(text, warrantyData) {
   const upperText = text.toUpperCase();
   let matchedModel = null;
-  let warrantyYears = null;
+  let warrantyMonths = null;
+  let productType = null;
 
   // Step 1: Direct match — check if any warranty model appears in the text
-  for (const [model, years] of Object.entries(warrantyData)) {
+  for (const [model, data] of Object.entries(warrantyData)) {
     if (upperText.includes(model)) {
       if (!matchedModel || model.length > matchedModel.length) {
         matchedModel = model;
-        warrantyYears = years;
+        warrantyMonths = data.months;
+        productType = data.productType;
       }
     }
   }
@@ -124,17 +139,17 @@ function lookupWarranty(text, warrantyData) {
   // Step 2: Reverse match — extract tokens from text and check if any warranty model CONTAINS that token
   // This handles shorthand like "X2K-2" matching "APPCAMSOLOX2K-2"
   if (!matchedModel) {
-    // Extract alphanumeric tokens (with hyphens/plus) that look like model codes (at least 2 chars, contains a number)
     const tokens = upperText.match(/[A-Z0-9][A-Z0-9\-\+\/]{1,}/g) || [];
     const modelTokens = tokens.filter(t => /\d/.test(t) && t.length >= 3);
 
     let bestTokenLength = 0;
     for (const token of modelTokens) {
-      for (const [model, years] of Object.entries(warrantyData)) {
+      for (const [model, data] of Object.entries(warrantyData)) {
         if (model.includes(token) && token.length > bestTokenLength) {
           bestTokenLength = token.length;
           matchedModel = model;
-          warrantyYears = years;
+          warrantyMonths = data.months;
+          productType = data.productType;
         }
       }
     }
@@ -142,18 +157,17 @@ function lookupWarranty(text, warrantyData) {
     // If multiple models match the same token, pick the shortest (most specific) model
     if (matchedModel) {
       const bestToken = modelTokens.find(t => t.length === bestTokenLength);
-      let shortestModel = matchedModel;
-      for (const [model, years] of Object.entries(warrantyData)) {
-        if (model.includes(bestToken) && model.length < shortestModel.length) {
-          shortestModel = model;
+      for (const [model, data] of Object.entries(warrantyData)) {
+        if (model.includes(bestToken) && model.length < matchedModel.length) {
           matchedModel = model;
-          warrantyYears = years;
+          warrantyMonths = data.months;
+          productType = data.productType;
         }
       }
     }
   }
 
-  return { matchedModel, warrantyYears };
+  return { matchedModel, warrantyMonths, productType };
 }
 
 async function loadHistoricalData() {
@@ -205,7 +219,7 @@ function detectModelFromHistoricalData(text, historicalData) {
 
   for (const token of modelTokens) {
     for (const row of historicalData) {
-      const rowModel = (row.Model || '').toUpperCase();
+      const rowModel = (row['Model Name'] || '').toUpperCase();
       if (rowModel.includes(token) && token.length > bestTokenLength) {
         bestModel = rowModel;
         bestTokenLength = token.length;
@@ -216,10 +230,10 @@ function detectModelFromHistoricalData(text, historicalData) {
   return bestModel;
 }
 
-function filterRelevantCases(data, product, matchedModel, text, maxCases = 30) {
+function filterRelevantCases(data, product, matchedModel, text, maxCases = 15) {
   // Filter by product category
   let filtered = product
-    ? data.filter(row => categorizeProduct(row.Model) === product)
+    ? data.filter(row => categorizeProduct(row['Model Name']) === product)
     : data;
 
   // Extract keywords from user text for relevance scoring
@@ -228,8 +242,8 @@ function filterRelevantCases(data, product, matchedModel, text, maxCases = 30) {
 
   // Score each case: model match (high weight) + keyword matches
   const scored = filtered.map(row => {
-    const rowModel = (row.Model || '').toUpperCase();
-    const content = `${row['Custormer comment']} ${row['Repair comment']}`.toLowerCase();
+    const rowModel = (row['Model Name'] || '').toUpperCase();
+    const content = `${row['Customer Comment'] || ''} ${row['Technician Comment'] || ''}`.toLowerCase();
 
     let score = 0;
     // Exact model match gets highest priority
@@ -259,7 +273,7 @@ function formatCasesForPrompt(cases) {
   if (cases.length === 0) return 'No similar historical cases found.';
 
   return cases.map(c =>
-    `- Job: ${c.Job} | Model: ${c.Model} | Issue: ${c['Custormer comment']} | Resolution: ${c['Repair comment']}`
+    `- Job: ${c['Job Number']} | Model: ${c['Model Name']} | Issue: ${c['Customer Comment']} | Resolution: ${c['Technician Comment']}`
   ).join('\n');
 }
 
@@ -283,7 +297,7 @@ exports.handler = async (event) => {
     ]);
     // Step 1: Try to detect category and model independently from user text
     let detectedProduct = detectProduct(text);
-    let { matchedModel, warrantyYears } = lookupWarranty(text, warrantyData);
+    let { matchedModel, warrantyMonths, productType } = lookupWarranty(text, warrantyData);
 
     // Step 2: If model not found in warranty data, try historical repair data
     if (!matchedModel) {
@@ -294,7 +308,10 @@ exports.handler = async (event) => {
     }
 
     // Step 3: Fill in the gaps — derive one from the other
-    // If we have model but no category → get category from model
+    // If we have model but no category → use product type from CSV, or categorize from model name
+    if (!detectedProduct && productType && productType !== 'SPARE PARTS') {
+      detectedProduct = productType;
+    }
     if (!detectedProduct && matchedModel) {
       detectedProduct = categorizeProduct(matchedModel);
       if (detectedProduct === 'Unknown' || detectedProduct === 'Other') {
@@ -310,7 +327,7 @@ exports.handler = async (event) => {
     console.log('Text:', text);
     console.log('=== WARRANTY ===');
     console.log('Matched Model:', matchedModel);
-    console.log('Warranty Years:', warrantyYears);
+    console.log('Warranty Months:', warrantyMonths);
     console.log('=== FILTERING ===');
     console.log('Detected Product:', detectedProduct);
     console.log('Total Historical Records:', historicalData.length);
@@ -357,8 +374,10 @@ EXAMPLES:
 
 PRODUCT INFORMATION:
 - Detected Product Category: ${detectedProduct || 'Unknown'}
-- Matched Model: ${matchedModel || 'Unknown'}
-- Warranty Period: ${warrantyYears ? warrantyYears + ' year(s)' : 'Unknown'}
+- Matched Model: ${matchedModel || 'Not detected'}
+- Warranty Period: ${warrantyMonths ? warrantyMonths + ' month(s)' : 'Unknown'}
+
+IMPORTANT: Only use the Matched Model shown above in your response. If Matched Model is "Not detected", do NOT guess or invent a model name. Use generic terms like "your camera", "your unit", "your device" instead. Never assume or hallucinate a model name that the customer did not provide.
 
 DATE DETECTION:
 - Look for any date in the text (formats: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY, or written dates)
@@ -367,8 +386,14 @@ DATE DETECTION:
 - Today's date is: ${new Date().toLocaleDateString('en-AU')}
 
 WARRANTY CALCULATION:
-- If purchase date and warranty period are known, calculate if the unit is still under warranty
-- Under warranty = purchase date + warranty period > today's date
+- Use Australian date format: DD/MM/YYYY. So "1/4/2024" means 1st April 2024, NOT 4th January 2024.
+- Warranty period is given in MONTHS. Warranty expiry = purchase date + warranty months.
+- Example: Purchase date 01/04/2024 + 12 months warranty = expires 01/04/2025
+- Example: Purchase date 01/06/2024 + 24 months warranty = expires 01/06/2026
+- Compare expiry date to today's date (${new Date().toLocaleDateString('en-AU')})
+- If today's date is AFTER the expiry date → OUT OF WARRANTY
+- If today's date is BEFORE the expiry date → UNDER WARRANTY
+- DOUBLE CHECK your calculation. If the expiry date has passed, the warranty has EXPIRED.
 - EXCEPTION: Baby monitors with swollen battery issues have EXTENDED warranty beyond the standard period
 
 COMPANY POLICIES:
@@ -396,33 +421,59 @@ CRITICAL PRIORITY RULES - YOU MUST FOLLOW THESE EXACTLY:
 - A "product model number" means a SPECIFIC model from our product range, such as: BW3451R, BW5151R, IGOCAM85R, IGOCAM75, DASHVIEW30, APPCAMSOLO+, XDECT8315, SSE45, UH850S, XTRAK50, SOLO2KPT, etc.
 - Generic words like "camera", "phone", "baby monitor", "dashcam", "radio" are NOT model numbers. The customer must provide the actual alphanumeric model code.
 - "Proof of purchase" means a receipt, invoice, order confirmation number, or a specific purchase date (e.g., "purchased on 15/01/2025"). Vague statements like "I just bought it", "it's new", or "recently purchased" are NOT proof of purchase.
-- If the customer has NOT provided BOTH a specific model number AND proof of purchase → you MUST use Low priority. No exceptions.
-- ONLY use Medium priority if the customer explicitly states a specific product model number AND provides proof of purchase or a specific purchase date.
+
+PRIORITY DETECTION (check in this order):
+1. **High priority** — Customer indicates they have ALREADY tried troubleshooting steps and the issue persists. Look for phrases like: "I have tried", "I have completed", "still not working", "issue remains", "already done", "followed your steps", "troubleshooting didn't help", "charged and recharged", "reset as instructed", "updated firmware but", "tried everything". If the customer describes specific actions they took (e.g., "fully charged", "reset the router", "formatted the SD card", "reinstalled") and the problem continues → this is High priority.
+2. **Medium priority** — Customer provides BOTH a specific model number AND proof of purchase, but has NOT yet tried troubleshooting.
+3. **Low priority** — Customer has NOT provided both a specific model number and proof of purchase.
 
 **If model OR proof of purchase is MISSING → MUST be Low Priority (1st email):**
 1. **Issue Category**: Specific issue type (e.g., Device Not Powering On, Pairing Issue, Screen Problem, Battery Issue, Connectivity Issue, Physical Damage, etc.)
 2. **Priority**: Low
-3. **Key Points**: Main concerns from customer
+3. **Key Points**: Main concerns from customer. Do NOT repeat the model name or serial number here.
 4. **Missing Information**: List exactly what is still needed (model number, proof of purchase, purchase date, etc.)
-5. **Suggested Email Response**: Professional draft response that acknowledges the customer's issue and politely asks them to provide the missing information. Format the email with proper paragraphs (use blank lines between paragraphs) and use bullet points (markdown - ) for any listed items.
+5. **Suggested Email Response**: Keep it SHORT and SIMPLE. The email should ONLY:
+   - Acknowledge the customer's issue briefly
+   - Ask for the missing information (model number and/or proof of purchase) using bullet points
+   - Explain why we need it (to check warranty and provide accurate guidance)
+   - Say we will investigate further once we have the details
+   - Do NOT ask extra questions (e.g., "what cable are you using?", "how long has this been happening?", "any other symptoms?"). Do NOT suggest any troubleshooting steps. Just ask for model and proof of purchase only.
 6. **Internal Notes**: Brief note for CS team
 
 **If specific model number AND proof of purchase are both PROVIDED → Medium Priority (2nd email):**
 1. **Issue Category**: Specific issue type (e.g., Device Not Powering On, Pairing Issue, Screen Problem, Battery Issue, Connectivity Issue, Physical Damage, etc.)
 2. **Priority**: Medium
 3. **Warranty Status**: Calculate from purchase date + warranty period. State whether unit is under warranty or out of warranty, and include the expiry date.
-4. **Key Points**: Main concerns from customer
-5. **Troubleshooting Steps**: Based on historical similar cases above, provide likely diagnosis and troubleshooting steps the customer can try. Reference relevant Job numbers (e.g., Job #12345) from the historical cases.
-6. **Suggested Email Response**: Professional draft response. Format the email with proper paragraphs (use blank lines between paragraphs) and use numbered steps (1. 2. 3.) for troubleshooting instructions. The email must include:
+4. **Key Points**: Main concerns from customer. Do NOT repeat the model name or serial number here.
+5. **Troubleshooting Steps**: IMPORTANT — Only reference historical cases and Job numbers if they are for the EXACT same model. If no exact model match exists, provide ONLY these basic generic steps and nothing else:
+   - Try a different charging cable
+   - Try a different power source
+   - Perform a factory reset
+   Do NOT invent or add ANY specific numbers, times, voltages, or technical details (e.g., do NOT write "charge for 4 hours", "use 5V/2A", "hold for 10 seconds") unless that exact detail appears in the historical cases for this exact model. If you are not sure, do not include it.
+6. **Suggested Email Response**: Professional draft response. Format the email with proper paragraphs (use blank lines between paragraphs) and use numbered steps (1. 2. 3.) for troubleshooting instructions. Keep troubleshooting steps simple and generic if no exact model match exists in historical cases. The email must include:
    - Troubleshooting steps for the customer to try (as numbered steps)
    - If UNDER warranty: inform the customer that if troubleshooting does not resolve the issue, we can offer a repair or replacement under warranty
    - If OUT of warranty: inform the customer that if troubleshooting does not resolve the issue, a quotation will be provided for repair
 7. **Internal Notes**: Brief note for CS team
 
+**If customer has ALREADY tried troubleshooting and issue persists → High Priority (follow-up email):**
+1. **Issue Category**: Specific issue type
+2. **Priority**: High
+3. **Warranty Status**: Calculate from purchase date + warranty period if available. State whether unit is under warranty or out of warranty.
+4. **Key Points**: Main concerns from customer. Do NOT repeat the model name or serial number here., including what troubleshooting steps they have already completed
+5. **Suggested Email Response**: IMPORTANT — Do NOT suggest more troubleshooting steps. The customer has already troubleshot. Write out the FULL email using the HIGH PRIORITY EMAIL TEMPLATE from the end of this prompt. Rules:
+   - Copy the template WORD FOR WORD. Do NOT rewrite, rephrase, or skip any section.
+   - ONLY replace: [Customer Name] → actual name, [describe the specific issue] → their issue, [Your Name] → keep as [Your Name]
+   - You MUST include ALL of these sections in this exact order: Sending Your Unit, address, Please Include, Repair Charges, Repair Timeframe, Important Information
+   - The Repair Charges section MUST always be included regardless of warranty status
+   - The Important Information section must use the EXACT wording from the template (about user error, liquid damage, user-generated data)
+   - Do NOT add extra sections, do NOT remove sections, do NOT change the wording of the template sections
+6. **Internal Notes**: Brief note for CS team including what troubleshooting was already attempted
+
 **IF TECHNICIAN ENQUIRY:**
 1. **Issue Category**: Specific issue type (e.g., Broken Clip, Battery Swollen, Screen Damage, Firmware Crash, Connectivity Issue, Water Damage, etc.)
-2. **Warranty Status**: Calculate if under warranty based on purchase date
-3. **Key Points**: Technical details from complaint
+2. **Warranty Status**: Calculate warranty status as of TODAY (${new Date().toLocaleDateString('en-AU')}). Purchase date + warranty months = expiry date. If expiry date is BEFORE today → OUT OF WARRANTY. Show: purchase date, warranty period, expiry date, today's date, and whether UNDER or OUT of warranty. Do NOT calculate warranty "at time of report" — always use TODAY's date.
+3. **Key Points**: Technical details from complaint. Do NOT repeat the model name or serial number here — they are already displayed separately in the UI.
 4. **Technical Diagnosis**: Likely root cause based on historical cases
 5. **Suggested Repair Action**: Specific repair steps, reference historical Job numbers (SC####)
 6. **Parts Likely Needed**: Components that may need replacement
@@ -437,19 +488,73 @@ FORMATTING RULES:
 REMEMBER: Output ONLY ONE mode. Start your response with either **[CUSTOMER SERVICE MODE]** or **[TECHNICIAN MODE]** and provide only that single response.
 
 FINAL CHECK BEFORE RESPONDING - DO THIS FIRST:
-If this is a Customer Service enquiry, ask yourself these two questions before writing anything:
-Q1: "Did the customer provide a SPECIFIC alphanumeric model code (e.g., BW3451R, IGOCAM85R, APPCAMSOLOX2K)?" — words like "camera", "phone", "monitor" do NOT count.
-Q2: "Did the customer provide proof of purchase or a specific purchase date (e.g., 12/12/2024)?" — phrases like "I just bought it" or "it's new" do NOT count.
-If EITHER answer is NO → Priority MUST be Low. Use the Low Priority format. Do NOT use the Medium Priority format.`;
+If this is a Customer Service enquiry, ask yourself these three questions before writing anything:
+Q1: "Has the customer already tried troubleshooting steps and reported the issue still persists?" — Look for phrases like "I have tried", "still not working", "followed your steps", "charged and recharged", etc.
+If YES → Priority MUST be High. Use the High Priority format.
+Q2: "Did the customer provide a SPECIFIC alphanumeric model code (e.g., BW3451R, IGOCAM85R, APPCAMSOLOX2K)?" — words like "camera", "phone", "monitor" do NOT count.
+Q3: "Did the customer provide proof of purchase or a specific purchase date (e.g., 12/12/2024)?" — phrases like "I just bought it" or "it's new" do NOT count.
+If Q1 is NO and BOTH Q2 and Q3 are YES → Priority is Medium.
+If Q1 is NO and EITHER Q2 or Q3 is NO → Priority MUST be Low.
+
+---
+
+HIGH PRIORITY EMAIL TEMPLATE (use this ONLY inside the "Suggested Email Response" field for High priority):
+
+Dear [Customer Name],
+
+Thank you for completing the troubleshooting steps and for providing the detailed update. We truly appreciate your cooperation.
+
+To accurately assess the [describe the specific issue] you described, our technician will need to inspect the unit in person. An in-person inspection is required to determine whether the unit qualifies for repair or replacement under warranty.
+
+**Sending Your Unit for Inspection (Within Australia)**
+
+Please send your unit to the address below:
+
+**Uniden Australia Pty Ltd**
+**PO BOX 755**
+**MOOREBANK NSW 1875**
+
+Please note: Uniden Australia is not liable for items lost in transit. We strongly recommend sending your parcel via Australia Post with tracking for security and peace of mind.
+
+**Please Include the Following:**
+- Your full name
+- Return address
+- Contact phone number
+- Email address
+- If available, please include a copy of your proof of purchase
+
+If a receipt is not available, we are still happy to inspect your unit and provide a repair quotation. You may also complete and attach the Repair and Service Form (if applicable).
+
+💲 **Repair Charges (Out-of-Warranty Units)**
+- Inspection & Quotation: From $88 (includes return freight within Australia; excludes overseas shipments)
+- Rejected Quote: $45 basic service charge (if the unit is requested to be returned without proceeding with repair)
+
+⏱ **Repair Timeframe**
+
+Repairs are typically completed within 5–10 working days from the date of receipt.
+To check the status of your repair, please contact us at:
+📞 **1300 366 895**
+Monday – Friday, 9:00 AM – 5:00 PM (Sydney time)
+
+⚠️ **Important Information**
+- Damage caused by user error (including liquid damage, lightning damage, or improper use) is not covered under warranty.
+- Repairs may result in the loss of user-generated data (e.g., phonebooks, frequency channels, SD card contents). We strongly recommend backing up any important data before sending your unit.
+
+Thank you for your understanding and cooperation.
+We look forward to assisting you further.
+
+Kind regards,
+[Your Name]
+Uniden Customer Service`;
 
     const response = await bedrockClient.send(
       new InvokeModelCommand({
-        modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-haiku-20240307-v1:0',
+        modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0',
         contentType: 'application/json',
         accept: 'application/json',
         body: JSON.stringify({
           anthropic_version: 'bedrock-2023-05-31',
-          max_tokens: 2048,
+          max_tokens: 2000,
           messages: [
             {
               role: 'user',
@@ -470,7 +575,7 @@ If EITHER answer is NO → Priority MUST be Low. Use the Low Priority format. Do
         analysis,
         detectedProduct,
         matchedModel,
-        warrantyYears,
+        warrantyMonths,
         matchedCases: relevantCases.length,
       }),
     };

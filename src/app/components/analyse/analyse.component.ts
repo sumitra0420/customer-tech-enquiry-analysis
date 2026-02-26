@@ -20,7 +20,7 @@ export class AnalyseComponent {
   errorMessage = signal('');
   copySuccess = signal<string | null>(null);
   matchedModel = signal<string | null>(null);
-  warrantyYears = signal<number | null>(null);
+  warrantyMonths = signal<number | null>(null);
   detectedProduct = signal<string | null>(null);
 
   private platformId = inject(PLATFORM_ID);
@@ -43,7 +43,7 @@ export class AnalyseComponent {
     this.errorMessage.set('');
     this.analysisResult.set(null);
     this.matchedModel.set(null);
-    this.warrantyYears.set(null);
+    this.warrantyMonths.set(null);
     this.detectedProduct.set(null);
     this.isLoading.set(true);
 
@@ -73,7 +73,7 @@ export class AnalyseComponent {
       const data = await response.json();
       this.analysisResult.set(data.analysis);
       this.matchedModel.set(data.matchedModel || null);
-      this.warrantyYears.set(data.warrantyYears || null);
+      this.warrantyMonths.set(data.warrantyMonths || null);
       this.detectedProduct.set(data.detectedProduct || null);
       console.log('Analysis result:', data.analysis);
     } catch (error: any) {
@@ -109,6 +109,16 @@ export class AnalyseComponent {
     const endIndex = nextSection === -1 ? result.length : startIndex + nextSection;
 
     return result.slice(startIndex, endIndex).trim();
+  }
+
+  stripMarkdown(text: string): string {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')   // **bold** → bold
+      .replace(/\*(.*?)\*/g, '$1')        // *italic* → italic
+      .replace(/^#{1,6}\s+/gm, '')        // ## heading → heading
+      .replace(/^- /gm, '● ')            // - bullet → ● bullet
+      .replace(/^\d+\.\s+/gm, (m) => m)  // keep numbered lists as-is
+      .trim();
   }
 
   async copyToClipboard(content: string, label: string) {

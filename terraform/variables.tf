@@ -32,10 +32,11 @@ variable "db_password" {
   description = "PostgreSQL master password"
   type        = string
   sensitive   = true
+  default     = "placeholder"
 }
 
 variable "bedrock_model_id" {
   description = "Amazon Bedrock model ID"
   type        = string
-  default     = "anthropic.claude-3-haiku-20240307-v1:0"
+  default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 }

@@ -66,7 +66,7 @@
           </div>
           <div>
             <span class="text-gray-500">Warranty Period:</span>
-            <span class="ml-1 font-semibold text-gray-900">{{ warrantyYears() ? warrantyYears() + ' year(s)' : 'Unknown' }}</span>
+            <span class="ml-1 font-semibold text-gray-900">{{ warrantyMonths() ? warrantyMonths() + ' month(s)' : 'Unknown' }}</span>
           </div>
           <div>
             <span class="text-gray-500">Product Category:</span>
@@ -82,7 +82,7 @@
         <div class="mt-6 pt-4 border-t border-gray-200 flex flex-wrap gap-3">
           @if (extractSection('Suggested Email Response')) {
             <button
-              (click)="copyToClipboard(extractSection('Suggested Email Response')!, 'email')"
+              (click)="copyToClipboard(stripMarkdown(extractSection('Suggested Email Response')!), 'email')"
               class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
             >
               @if (copySuccess() === 'email') {
@@ -96,7 +96,7 @@
           }
           @if (extractSection('Suggested Technical Report Summary')) {
             <button
-              (click)="copyToClipboard(extractSection('Suggested Technical Report Summary')!, 'report')"
+              (click)="copyToClipboard(stripMarkdown(extractSection('Suggested Technical Report Summary')!), 'report')"
               class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
             >
               @if (copySuccess() === 'report') {
