@@ -68,6 +68,24 @@ function categorizeProduct(typeValue) {
   return 'Other';
 }
 
+// Map CSV "Product Type" column values to user-readable category labels
+function mapProductType(csvProductType) {
+  const type = String(csvProductType || '').toUpperCase().trim();
+  if (type === 'BABY MONITORS') return 'Baby Monitor';
+  if (type === 'CORDLESS PHONE' || type === 'CORDLESS PHONE - EXTRA HANDSET' || type === 'CORDED') return 'Phone';
+  if (type === 'DASHCAM') return 'Dash Cam';
+  if (type === 'VS- WIRELESS' || type === 'VS- WIRED') return 'Security Camera';
+  if (type === 'UCB - HANDHELD RADIOS' || type === 'UCB - MOBILE RADIOS') return 'Radio';
+  if (type === 'MARINE RADIO') return 'Marine Radio';
+  if (type === 'JUMP STARTER') return 'Jump Starter';
+  if (type === 'RADAR DETECTOR DASH') return 'Radar Detector';
+  if (type === 'SCANNER') return 'Scanner';
+  if (type === 'NAVI') return 'Navigation';
+  if (type.startsWith('ACCESSORIES') || type.startsWith('ANTENNAS')) return 'Accessories';
+  if (type === 'SPARE PARTS') return null; // Don't show spare parts as a category
+  return null;
+}
+
 // Keywords to detect product from user enquiry text
 const PRODUCT_KEYWORDS = {
   'Baby Monitor': ['baby', 'monitor', 'bw3', 'bw4', 'nursery', 'pairing'],
@@ -98,7 +116,9 @@ async function loadWarrantyData() {
   cachedWarrantyData = {};
   // CSV columns: Name, Display Name, Model Description, Warranty (Month), Product Type
   lines.slice(1).filter(line => line.trim()).forEach(line => {
-    const values = line.match(/(".*?"|[^,]+)/g) || [];
+    // Replace escaped double-quotes ("") with placeholder before parsing
+    // so fields like "10.26"" WIRELESS..." don't shift column positions
+    const values = line.replace(/""/g, '\x00').match(/(".*?"|[^,]+)/g) || [];
     const name = (values[0] || '').replace(/^"|"$/g, '').trim().toUpperCase();
     const displayName = (values[1] || '').replace(/^"|"$/g, '').trim().toUpperCase();
     const warrantyMonths = parseInt((values[3] || '').replace(/^"|"$/g, '').trim());
@@ -108,9 +128,10 @@ async function loadWarrantyData() {
       cachedWarrantyData[name] = { months: warrantyMonths, productType };
     }
     // Also index by display name (extract model from "MODEL DESCRIPTION - CODE" format)
+    // Require at least one digit to avoid indexing generic words like "PHONE", "APP", "CAM"
     if (displayName) {
       const modelMatch = displayName.match(/^([A-Z0-9][A-Z0-9\-\+\/]+)/);
-      if (modelMatch) {
+      if (modelMatch && /\d/.test(modelMatch[1])) {
         cachedWarrantyData[modelMatch[1]] = { months: warrantyMonths, productType };
       }
     }
@@ -132,6 +153,22 @@ function lookupWarranty(text, warrantyData) {
         matchedModel = model;
         warrantyMonths = data.months;
         productType = data.productType;
+      }
+    }
+  }
+
+  // Step 1.5: Normalized match — strip spaces from customer text and match against Name keys
+  // Handles "iGO Play 10" → "IGOPLAY10", "App Cam X24B" → "APPCAMX24B", double spaces, etc.
+  if (!matchedModel) {
+    const normalizedText = upperText.replace(/\s+/g, '');
+    for (const [model, data] of Object.entries(warrantyData)) {
+      const normalizedModel = model.replace(/\s+/g, '');
+      if (normalizedModel.length >= 4 && /\d/.test(normalizedModel) && normalizedText.includes(normalizedModel)) {
+        if (!matchedModel || normalizedModel.length > matchedModel.replace(/\s+/g, '').length) {
+          matchedModel = model;
+          warrantyMonths = data.months;
+          productType = data.productType;
+        }
       }
     }
   }
@@ -308,14 +345,24 @@ exports.handler = async (event) => {
     }
 
     // Step 3: Fill in the gaps — derive one from the other
-    // If we have model but no category → use product type from CSV, or categorize from model name
-    if (!detectedProduct && productType && productType !== 'SPARE PARTS') {
-      detectedProduct = productType;
-    }
-    if (!detectedProduct && matchedModel) {
-      detectedProduct = categorizeProduct(matchedModel);
-      if (detectedProduct === 'Unknown' || detectedProduct === 'Other') {
-        detectedProduct = null;
+    // If we matched a model, use CSV product type (mapped to readable label) — this is authoritative
+    // and overrides keyword detection (e.g. avoid "Phone" from free text when model is a camera)
+    if (matchedModel) {
+      const mappedType = mapProductType(productType);
+      if (mappedType) {
+        detectedProduct = mappedType;
+      } else {
+        // Fall back to categorizing from model name keywords
+        const modelCategory = categorizeProduct(matchedModel);
+        if (modelCategory !== 'Unknown' && modelCategory !== 'Other') {
+          detectedProduct = modelCategory;
+        }
+      }
+    } else if (!detectedProduct) {
+      // No model matched — use keyword detection result or CSV product type
+      if (productType) {
+        const mappedType = mapProductType(productType);
+        if (mappedType) detectedProduct = mappedType;
       }
     }
     // If we have category but no model → that's fine, we'll ask customer for model

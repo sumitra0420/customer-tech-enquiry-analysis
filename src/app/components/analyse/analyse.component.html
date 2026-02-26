@@ -1,115 +1,452 @@
-<div class="min-h-screen bg-gray-50">
-  <!-- Header -->
-  <header class="bg-white shadow">
-    <div class="max-w-4xl mx-auto px-6 py-5 flex justify-between items-center">
-      <h1 class="text-2xl font-bold text-gray-900">Tech Enquiry Analysis</h1>
-      <div class="flex items-center gap-4">
-        <span class="text-gray-600 text-lg">{{ userName }}</span>
-        <button (click)="onSignOut()" class="text-base text-red-600 hover:text-red-800">
-          Sign Out
+<div class="flex h-screen bg-[#eef1f8] overflow-hidden">
+  <!-- Sidebar -->
+  <aside class="w-52 bg-white flex flex-col flex-shrink-0 border-r border-gray-200">
+    <!-- Logo -->
+    <div class="p-4 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+          U
+        </div>
+        <div>
+          <div class="text-gray-900 font-semibold text-sm leading-tight">Uniden</div>
+          <div class="text-gray-400 text-xs leading-tight">Analysis Tool</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-3">
+      <div class="text-gray-400 text-[10px] uppercase tracking-wider mb-2 px-2 font-medium">Main</div>
+      <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-default border-l-2 border-red-500 bg-red-50">
+        <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <span class="text-gray-800 font-medium text-xs">Analysis Tool</span>
+        <span class="ml-auto w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+      </div>
+    </nav>
+
+    <!-- User Profile -->
+    <div class="p-3 border-t border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+          {{ userName.charAt(0).toUpperCase() }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-gray-800 text-xs font-medium truncate">{{ userName }}</div>
+        </div>
+        <button (click)="onSignOut()" class="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0" title="Sign out">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
         </button>
       </div>
     </div>
-  </header>
+  </aside>
 
   <!-- Main Content -->
-  <main class="max-w-4xl mx-auto px-6 py-8">
-    <!-- Input Section -->
-    <div class="bg-white rounded-lg shadow p-8 mb-8">
-      <h2 class="text-xl font-semibold text-gray-900 mb-2">Customer Enquiry</h2>
-      <p class="text-gray-600 mb-4">
-        For best results, ensure the enquiry includes:
-        <span class="font-medium">Product model</span>, and
-        <span class="font-medium">Proof of purchase or Purchase Date</span>.
-      </p>
-      <textarea
-        [value]="enquiryText()"
-        (input)="enquiryText.set($any($event.target).value)"
-        placeholder="Paste the customer enquiry here..."
-        rows="10"
-        class="w-full px-4 py-3 text-base border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-      ></textarea>
-
-      @if (errorMessage()) {
-        <div class="mt-3 text-red-600 text-base">
-          {{ errorMessage() }}
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Top Bar -->
+    <div
+      class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0"
+    >
+      <h1 class="text-gray-800 font-semibold text-sm">New Enquiry Analysis</h1>
+      <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <div
+          [class]="
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ' +
+            (getDetectedMode() === 'Customer Service Mode' || getDetectedMode() === ''
+              ? 'bg-white text-gray-800 shadow-sm'
+              : 'text-gray-400')
+          "
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+          Customer Service
         </div>
-      }
-
-      <button
-        (click)="onAnalyse()"
-        [disabled]="isLoading() || !enquiryText()"
-        class="mt-6 w-full bg-indigo-600 text-white py-3 px-6 text-lg rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {{ isLoading() ? 'Analysing...' : 'Analyse Enquiry' }}
-      </button>
+        <div
+          [class]="
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ' +
+            (getDetectedMode() === 'Technician Mode'
+              ? 'bg-white text-gray-800 shadow-sm'
+              : 'text-gray-400')
+          "
+        >
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
+          </svg>
+          Technician Mode
+        </div>
+      </div>
     </div>
 
-    <!-- Loading Indicator -->
-    @if (isLoading()) {
-      <div class="bg-white rounded-lg shadow p-8 flex flex-col items-center gap-4">
-        <div class="animate-spin h-10 w-10 rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
-        <p class="text-gray-600 text-lg">Analysing enquiry, please wait...</p>
-      </div>
-    }
-
-    <!-- Result Section -->
-    @if (analysisResult()) {
-      <div class="bg-white rounded-lg shadow p-8">
-        <h2 class="text-xl font-semibold text-gray-900 mb-4">Analysis Result</h2>
-
-        <!-- Detected Model Info -->
-        <div class="mb-4 p-4 bg-gray-50 rounded-md flex flex-wrap gap-x-8 gap-y-2 text-sm">
-          <div>
-            <span class="text-gray-500">Matched Model:</span>
-            <span class="ml-1 font-semibold text-gray-900">{{ matchedModel() || 'Not detected' }}</span>
+    <!-- Body -->
+    <div class="flex-1 flex overflow-hidden p-4 gap-4">
+      <!-- Left: Input Panel -->
+      <div class="w-72 flex-shrink-0 flex flex-col">
+        <div class="bg-white border border-gray-200 rounded-xl flex-1 flex flex-col p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-gray-600 text-xs font-medium flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              Enquiry Input
+            </span>
+            @if (enquiryText()) {
+              <button
+                (click)="enquiryText.set('')"
+                class="text-gray-400 hover:text-gray-600 text-xs transition-colors"
+              >
+                Clear
+              </button>
+            }
           </div>
-          <div>
-            <span class="text-gray-500">Warranty Period:</span>
-            <span class="ml-1 font-semibold text-gray-900">{{ warrantyMonths() ? warrantyMonths() + ' month(s)' : 'Unknown' }}</span>
-          </div>
-          <div>
-            <span class="text-gray-500">Product Category:</span>
-            <span class="ml-1 font-semibold text-gray-900">{{ detectedProduct() || 'Unknown' }}</span>
-          </div>
-        </div>
 
-        <div class="prose prose-lg max-w-none text-gray-700">
-          <markdown [data]="analysisResult()"></markdown>
-        </div>
+          <textarea
+            [value]="enquiryText()"
+            (input)="enquiryText.set($any($event.target).value)"
+            placeholder="Paste customer enquiry here..."
+            class="flex-1 w-full bg-transparent text-gray-700 text-xs placeholder-gray-300 resize-none focus:outline-none leading-relaxed"
+          ></textarea>
 
-        <!-- Copy Buttons -->
-        <div class="mt-6 pt-4 border-t border-gray-200 flex flex-wrap gap-3">
-          @if (extractSection('Suggested Email Response')) {
+          @if (errorMessage()) {
+            <div class="mt-2 text-red-500 text-xs">{{ errorMessage() }}</div>
+          }
+
+          <div class="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+            <span class="text-gray-400 text-[10px]">AI detects model & warranty automatically</span>
             <button
-              (click)="copyToClipboard(stripMarkdown(extractSection('Suggested Email Response')!), 'email')"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
+              (click)="onAnalyse()"
+              [disabled]="isLoading() || !enquiryText()"
+              class="flex items-center gap-1.5 px-3 py-1.5 bg-[#1a2035] hover:bg-[#252d4a] disabled:opacity-40 disabled:cursor-not-allowed text-white text-xs font-medium rounded-lg transition-colors flex-shrink-0"
             >
-              @if (copySuccess() === 'email') {
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Copied!
+              @if (isLoading()) {
+                <div
+                  class="animate-spin h-3 w-3 rounded-full border-2 border-white/30 border-t-white"
+                ></div>
+                Analysing...
               } @else {
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                Copy Email Response
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+                Analyze
               }
             </button>
-          }
-          @if (extractSection('Suggested Technical Report Summary')) {
-            <button
-              (click)="copyToClipboard(stripMarkdown(extractSection('Suggested Technical Report Summary')!), 'report')"
-              class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700"
-            >
-              @if (copySuccess() === 'report') {
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                Copied!
-              } @else {
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
-                Copy Technical Report
-              }
-            </button>
-          }
+          </div>
         </div>
       </div>
-    }
-  </main>
+
+      <!-- Right: Results -->
+      <div class="flex-1 flex flex-col gap-4 overflow-auto min-w-0">
+        @if (!analysisResult() && !isLoading()) {
+          <div class="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+            <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm">
+              <svg
+                class="w-6 h-6 text-gray-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+            </div>
+            <div>
+              <p class="text-gray-500 text-sm font-medium">Ready to analyse</p>
+              <p class="text-gray-400 text-xs mt-1">Paste an enquiry and click Analyze</p>
+            </div>
+          </div>
+        }
+
+        @if (isLoading()) {
+          <div class="flex-1 flex flex-col items-center justify-center gap-3">
+            <div
+              class="animate-spin h-8 w-8 rounded-full border-2 border-gray-200 border-t-indigo-500"
+            ></div>
+            <p class="text-gray-500 text-sm">Analysing enquiry...</p>
+          </div>
+        }
+
+        @if (analysisResult()) {
+          <!-- 3 Info Cards -->
+          <div class="grid grid-cols-3 gap-3 flex-shrink-0">
+            <!-- Product ID Card -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-gray-400 text-[10px] uppercase tracking-wider font-medium"
+                  >Product ID</span
+                >
+                <div class="w-6 h-6 bg-blue-50 rounded-md flex items-center justify-center">
+                  <svg
+                    class="w-3 h-3 text-blue-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div class="text-gray-900 font-bold text-base leading-tight">
+                {{ matchedModel() || 'Not detected' }}
+              </div>
+              <div class="text-gray-400 text-xs mt-1">
+                {{ detectedProduct() || 'Unknown category' }}
+              </div>
+            </div>
+
+            <!-- Warranty Card -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <span class="text-gray-400 text-[10px] uppercase tracking-wider font-medium">Warranty</span>
+                <div class="flex items-center gap-1.5">
+                  @if (extractWarrantyStatus() === 'ACTIVE') {
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 font-medium border border-green-100">ACTIVE</span>
+                  }
+                  @if (extractWarrantyStatus() === 'EXPIRED') {
+                    <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-red-50 text-red-500 font-medium border border-red-100">EXPIRED</span>
+                  }
+                  <div class="w-6 h-6 bg-green-50 rounded-md flex items-center justify-center">
+                    <svg class="w-3 h-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <div class="text-gray-900 font-bold text-base leading-tight">
+                {{ warrantyMonths() ? warrantyMonths() + ' months' : 'Unknown' }}
+              </div>
+
+              <div class="text-xs space-y-1">
+                <div class="flex justify-between">
+                  <span class="text-gray-400">Purchase:</span>
+                  <span class="text-gray-700 font-medium">{{ formatDate(extractPurchaseDate()) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-400">Ends:</span>
+                  <span class="text-gray-700 font-medium">{{ formatDate(extractExpiryDate()) }}</span>
+                </div>
+              </div>
+
+              @if (extractWarrantyStatus()) {
+                <div class="h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    [class]="extractWarrantyStatus() === 'ACTIVE' ? 'h-full bg-green-500 rounded-full' : 'h-full bg-red-400 rounded-full'"
+                    [style.width.%]="getWarrantyProgress()"
+                  ></div>
+                </div>
+              }
+            </div>
+
+            <!-- Priority Card (Customer Service only) -->
+            @if (getDetectedMode() !== 'Technician Mode') {
+              <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-gray-400 text-[10px] uppercase tracking-wider font-medium">Priority</span>
+                  <div class="w-6 h-6 bg-orange-50 rounded-md flex items-center justify-center">
+                    <svg class="w-3 h-3 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                  </div>
+                </div>
+                <div [class]="getPriorityClass()">{{ extractPriority() || 'Unknown' }}</div>
+                <div class="text-gray-400 text-xs mt-1">{{ extractIssueCategory() || 'Issue category' }}</div>
+              </div>
+            }
+
+            <!-- Issue Card (Technician Mode only) -->
+            @if (getDetectedMode() === 'Technician Mode') {
+              <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-gray-400 text-[10px] uppercase tracking-wider font-medium">Issue Type</span>
+                  <div class="w-6 h-6 bg-purple-50 rounded-md flex items-center justify-center">
+                    <svg class="w-3 h-3 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 17v-5m4 5v-3m4 3v-1"/>
+                    </svg>
+                  </div>
+                </div>
+                <div class="text-gray-900 font-bold text-base leading-tight">
+                  {{ extractIssueCategory() || 'Unknown' }}
+                </div>
+                <div class="text-gray-400 text-xs mt-1">
+                  @if (matchedCases() !== null) {
+                    {{ matchedCases() }} similar job{{ matchedCases() === 1 ? '' : 's' }} found
+                  } @else {
+                    Historical cases
+                  }
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Draft Response Panel -->
+          <div
+            class="bg-white border border-gray-200 rounded-xl flex flex-col flex-1 min-h-0 shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between px-4 py-3 border-b border-gray-100 flex-shrink-0"
+            >
+              <div class="flex items-center gap-2.5">
+                <div class="w-6 h-6 bg-indigo-50 rounded-full flex items-center justify-center">
+                  <svg
+                    class="w-3 h-3 text-indigo-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <span class="text-gray-800 text-sm font-medium">Draft Response</span>
+                @if (getDetectedMode()) {
+                  <span
+                    class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100"
+                  >
+                    {{ getDetectedMode() }}
+                  </span>
+                }
+              </div>
+              <div class="flex items-center gap-3">
+                @if (extractSection('Suggested Email Response')) {
+                  <button
+                    (click)="
+                      copyToClipboard(
+                        stripMarkdown(extractSection('Suggested Email Response')!),
+                        'email'
+                      )
+                    "
+                    class="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-xs transition-colors"
+                  >
+                    @if (copySuccess() === 'email') {
+                      <svg
+                        class="w-3.5 h-3.5 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <span class="text-green-500">Copied!</span>
+                    } @else {
+                      <svg
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      Copy Email
+                    }
+                  </button>
+                }
+                @if (extractSection('Suggested Technical Report Summary')) {
+                  <button
+                    (click)="
+                      copyToClipboard(
+                        stripMarkdown(extractSection('Suggested Technical Report Summary')!),
+                        'report'
+                      )
+                    "
+                    class="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-xs transition-colors"
+                  >
+                    @if (copySuccess() === 'report') {
+                      <svg
+                        class="w-3.5 h-3.5 text-green-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                      <span class="text-green-500">Copied!</span>
+                    } @else {
+                      <svg
+                        class="w-3.5 h-3.5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      Copy Report
+                    }
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- Analysis Content -->
+            <div class="flex-1 overflow-auto p-4">
+              <div class="prose prose-sm max-w-none text-gray-700">
+                <markdown [data]="analysisResult()"></markdown>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
 </div>
