@@ -314,6 +314,32 @@ function formatCasesForPrompt(cases) {
   ).join('\n');
 }
 
+// Fallback: use AI to extract model name when rule-based lookup fails
+// Handles typos ("Xtrack" → "XTRAK"), spacing variations, and product comparisons
+async function extractModelWithAI(text) {
+  const response = await bedrockClient.send(new InvokeModelCommand({
+    modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    contentType: 'application/json',
+    accept: 'application/json',
+    body: JSON.stringify({
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens: 50,
+      messages: [{
+        role: 'user',
+        content: `Extract the Uniden product model code from this text.
+Return ONLY the model code in uppercase with no spaces (e.g. XTRAK80OFFROAD, IGOPLAY10, APPCAMX24B).
+If multiple models are mentioned, return the primary or most specific one.
+If no Uniden product model can be identified, return "NONE".
+
+Text: "${text}"`,
+      }],
+    }),
+  }));
+  const body = JSON.parse(new TextDecoder().decode(response.body));
+  const extracted = body.content[0].text.trim().toUpperCase().replace(/\s+/g, '');
+  return extracted === 'NONE' ? null : extracted;
+}
+
 exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
@@ -341,6 +367,25 @@ exports.handler = async (event) => {
       const historicalMatch = detectModelFromHistoricalData(text, historicalData);
       if (historicalMatch) {
         matchedModel = historicalMatch;
+      }
+    }
+
+    // Step 2.5: Still no model? Use AI as fallback (handles typos, spacing, product comparisons)
+    // Only fires when rule-based lookup fails — avoids extra cost for normal cases
+    if (!matchedModel) {
+      try {
+        const aiModel = await extractModelWithAI(text);
+        console.log('AI model extraction result:', aiModel);
+        if (aiModel && warrantyData[aiModel]) {
+          matchedModel = aiModel;
+          warrantyMonths = warrantyData[aiModel].months;
+          productType = warrantyData[aiModel].productType;
+        } else if (aiModel) {
+          // AI found a model name but it's not in warranty data — still use it for context
+          matchedModel = aiModel;
+        }
+      } catch (e) {
+        console.log('AI model extraction failed:', e.message);
       }
     }
 
