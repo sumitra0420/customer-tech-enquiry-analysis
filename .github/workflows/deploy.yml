@@ -23,6 +23,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate environment config
+        run: |
+          mkdir -p src/environments
+          cat > src/environments/environments.ts << EOF
+          export const environments = {
+            production: true,
+            apiUrl: '${{ secrets.API_URL }}',
+            cognito: {
+              userPoolId: '${{ secrets.COGNITO_USER_POOL_ID }}',
+              userPoolClientId: '${{ secrets.COGNITO_CLIENT_ID }}',
+            },
+          };
+          EOF
+
       - name: Build Angular app
         run: npx ng build --configuration=production
 
