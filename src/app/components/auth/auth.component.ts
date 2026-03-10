@@ -14,6 +14,7 @@ import { AuthService } from '../../services/auth.service';
 export class AuthComponent {
   isSignUp = signal(false);
   needsVerification = signal(false);
+  showPasswordStep = signal(false);
 
   // Form fields
   name = signal('');
@@ -112,10 +113,30 @@ export class AuthComponent {
     }
   }
 
+  continueWithEmail() {
+    this.errorMessage.set('');
+    if (!this.email().trim()) {
+      this.errorMessage.set('Please enter your email address.');
+      return;
+    }
+    this.showPasswordStep.set(true);
+  }
+
+  backToEmail() {
+    this.showPasswordStep.set(false);
+    this.password.set('');
+    this.errorMessage.set('');
+  }
+
+  socialLogin(provider: string) {
+    this.errorMessage.set(`${provider} login is not yet configured. Please use email to sign in.`);
+  }
+
   toggleMode() {
     this.isSignUp.update(v => !v);
     this.errorMessage.set('');
     this.successMessage.set('');
     this.needsVerification.set(false);
+    this.showPasswordStep.set(false);
   }
 }
