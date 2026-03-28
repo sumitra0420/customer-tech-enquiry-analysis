@@ -11,6 +11,10 @@ terraform/.terraform.lock.hcl
 lambdas/**/node_modules/
 lambdas/**/*.zip
 
+# Local dev scripts
+scripts/node_modules/
+local-server.js
+
 # S3 data (internal company data)
 s3-data/
 

@@ -61,6 +61,17 @@
                   "with": "src/environments/environments.personal.ts"
                 }
               ]
+            },
+            "local": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environments.ts",
+                  "with": "src/environments/environments.local.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -76,6 +87,9 @@
             },
             "personal": {
               "buildTarget": "customer-tech-enquiry-analysis:build:personal"
+            },
+            "local": {
+              "buildTarget": "customer-tech-enquiry-analysis:build:local"
             }
           },
           "defaultConfiguration": "development"
