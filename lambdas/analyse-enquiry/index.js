@@ -91,11 +91,6 @@ async function loadProductIndex() {
     if (model && row.warranty_month) {
       cachedProductIndex[model] = { months: row.warranty_month, productType: row.product_type };
     }
-    // Also index by first token in product_name that contains a digit
-    const nameToken = (row.product_name || '').toUpperCase().match(/^([A-Z0-9][A-Z0-9\-\+\/]+)/);
-    if (nameToken && /\d/.test(nameToken[1])) {
-      cachedProductIndex[nameToken[1]] = { months: row.warranty_month, productType: row.product_type };
-    }
   }
 
   console.log(`Product index loaded: ${Object.keys(cachedProductIndex).length} entries`);

@@ -24,6 +24,9 @@ export class AnalyseComponent {
   detectedProduct = signal<string | null>(null);
   matchedCases = signal<number | null>(null);
 
+  inputPanelWidth = signal(384); // px, default w-96
+  private isResizing = false;
+
   private platformId = inject(PLATFORM_ID);
   private isBrowser = isPlatformBrowser(this.platformId);
 
@@ -31,6 +34,26 @@ export class AnalyseComponent {
     private authService: AuthService,
     private router: Router
   ) {}
+
+  onResizeStart(event: MouseEvent) {
+    if (!this.isBrowser) return;
+    this.isResizing = true;
+    event.preventDefault();
+
+    const onMove = (e: MouseEvent) => {
+      if (!this.isResizing) return;
+      // Clamp between 240px and 640px
+      const newWidth = Math.min(640, Math.max(240, e.clientX - 208)); // 208 = sidebar width
+      this.inputPanelWidth.set(newWidth);
+    };
+    const onUp = () => {
+      this.isResizing = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
 
   async onAnalyse() {
     if (!this.isBrowser) return;
