@@ -152,36 +152,48 @@ function extractScNumber(text) {
   return match ? match[0].toUpperCase() : null;
 }
 
-function detectIntent(text) {
-  const lower = text.toLowerCase();
-
-  // JOB_LOOKUP: asking where/find/status of a specific SC number
-  if (extractScNumber(text) && /\b(where|find|status|track|locate|look up|search for|what happened)\b/.test(lower)) {
-    return 'JOB_LOOKUP';
-  }
-
-  // TECHNICIAN: SC number present in text (repair note)
-  if (extractScNumber(text)) {
+async function detectIntent(text) {
+  // SC number checks are reliable regex — handle before AI call
+  const scNumber = extractScNumber(text);
+  if (scNumber) {
+    // Short text asking about the job → JOB_LOOKUP, longer repair note → TECHNICIAN
+    const lower = text.toLowerCase();
+    if (/\b(where|find|status|track|locate|look up|what happened|what is|tell me|show me|info|information|details|check|repair job|job number|about)\b/.test(lower)) {
+      return 'JOB_LOOKUP';
+    }
     return 'TECHNICIAN';
   }
 
-  // FAULT_LOOKUP: asking about common faults/issues for a product
-  if (/\b(common fault|common issue|common problem|commonly have|what fault|what issue|what problem|known issue|known fault|typical fault|frequently report)\b/.test(lower)) {
-    return 'FAULT_LOOKUP';
-  }
+  // Use AI to classify intent AND extract product category in one call
+  const prompt = `You are a classifier for a Uniden Australia internal support tool.
 
-  // KNOWLEDGE_LOOKUP: how-to / reset / setup questions
-  if (/\b(how do i|how to|how can i|reset|factory reset|set up|setup|pair|pairing|configure|update firmware|install|connect|troubleshoot)\b/.test(lower)) {
-    return 'KNOWLEDGE_LOOKUP';
-  }
+Classify the enquiry into ONE intent, and if PRODUCT_LOOKUP, also identify the product category.
 
-  // POLICY_LOOKUP: policy, warranty, procedure, charge, fee questions
-  if (/\b(policy|policies|procedure|warranty|guarantee|charge|fee|return|refund|repair cost|quote|quotation|what is the warranty)\b/.test(lower)) {
-    return 'POLICY_LOOKUP';
-  }
+INTENTS:
+- FAULT_LOOKUP: asking about common faults, issues, or problems for a specific product model
+- KNOWLEDGE_LOOKUP: asking how to use, reset, set up, pair, or troubleshoot a product
+- POLICY_LOOKUP: asking about company policy, warranty rules, repair fees, return process, RA process
+- PRODUCT_LOOKUP: asking about product availability, discontinued status, or what models exist in a category
+- CUSTOMER_SERVICE: a customer complaint or request that needs a drafted email response
 
-  // Default: CUSTOMER_SERVICE
-  return 'CUSTOMER_SERVICE';
+PRODUCT CATEGORIES (only for PRODUCT_LOOKUP): CORDED, CORDLESS PHONE, DASHCAM, BABY MONITORS, VS- WIRELESS, VS- WIRED, UCB - HANDHELD RADIOS, UCB - MOBILE RADIOS, MARINE RADIO, SCANNER, NAVI, JUMP STARTER, ACCESSORIES, UNKNOWN
+
+ENQUIRY: "${text.substring(0, 300)}"
+
+Reply in this exact format (one line):
+INTENT|CATEGORY
+Examples: PRODUCT_LOOKUP|CORDED  or  FAULT_LOOKUP|NONE  or  CUSTOMER_SERVICE|NONE`;
+
+  const result = await callBedrock(prompt, 20);
+  const [intentRaw, categoryRaw] = result.trim().toUpperCase().split('|');
+  const intent = intentRaw?.replace(/[^A-Z_]/g, '') || 'CUSTOMER_SERVICE';
+  const category = categoryRaw?.replace(/[^A-Z0-9\- ]/g, '').trim() || null;
+
+  const valid = ['FAULT_LOOKUP', 'KNOWLEDGE_LOOKUP', 'POLICY_LOOKUP', 'PRODUCT_LOOKUP', 'CUSTOMER_SERVICE'];
+  return {
+    intent: valid.includes(intent) ? intent : 'CUSTOMER_SERVICE',
+    aiCategory: category && category !== 'NONE' ? category : null,
+  };
 }
 
 // ─── Database query functions ──────────────────────────────────────────────────
@@ -435,7 +447,17 @@ Instructions:
 // 4. JOB_LOOKUP: "Where is repair job SC2500?"
 // Fetches the repair job record and formats it clearly
 async function handleJobLookup(text, scNumber) {
-  const job = await queryJobByNumber(scNumber);
+  const [job, warrantyData] = await Promise.all([
+    queryJobByNumber(scNumber),
+    loadProductIndex(),
+  ]);
+
+  // Look up warranty and product type from the product index using the job's model
+  const jobModel = job?.product_model?.toUpperCase() || null;
+  const productEntry = jobModel ? warrantyData[jobModel] : null;
+  const warrantyMonths = productEntry?.months || null;
+  const productType = productEntry?.productType || null;
+  const detectedProduct = productType ? (mapProductType(productType) || categorizeProduct(jobModel)) : (jobModel ? categorizeProduct(jobModel) : null);
 
   const jobContext = job
     ? `Job Number: ${job.job_number}
@@ -462,7 +484,9 @@ Use markdown formatting with bold labels for each field.`;
   return {
     intent: 'JOB_LOOKUP',
     analysis,
-    matchedModel: job?.product_model || null,
+    matchedModel: jobModel,
+    warrantyMonths,
+    detectedProduct,
     jobNumber: scNumber,
   };
 }
@@ -516,7 +540,136 @@ Use markdown formatting. Reference specific job numbers where relevant.`;
   };
 }
 
-// 6. CUSTOMER_SERVICE: customer email (Hi, my camera has a lag issue...)
+// 6. PRODUCT_LOOKUP: "Is the iGOCAM55 discontinued?" / "What corded phone models are available?"
+async function handleProductLookup(text, matchedModel, warrantyMonths, detectedProduct, aiCategory = null) {
+  let productContext, repairContext, knowledgeContext;
+
+  if (matchedModel) {
+    // ── Single model query ──────────────────────────────────────────────────
+    const [productRes, repairJobs, knowledgeEntries] = await Promise.all([
+      pool.query(`SELECT status FROM products WHERE UPPER(model) = $1 LIMIT 1`, [matchedModel.toUpperCase()]),
+      queryRepairJobsByModel(matchedModel, 30),
+      queryKnowledgeBase(matchedModel),
+    ]);
+
+    const status = productRes.rows.length > 0 ? (productRes.rows[0].status || 'Active') : 'Unknown';
+
+    productContext = `Model: ${matchedModel}\nCategory: ${detectedProduct || 'Unknown'}\nWarranty: ${warrantyMonths ? warrantyMonths + ' months' : 'Unknown'}\nStatus: ${status}`;
+
+    repairContext = repairJobs.length > 0
+      ? repairJobs.map(j => `- ${j.job_number}: "${j.customer_comment}" → Tech: "${j.technician_comment}"`).join('\n')
+      : 'No repair history found.';
+
+    knowledgeContext = knowledgeEntries.length > 0
+      ? knowledgeEntries.map(e => `[${e.entry_type}] Q: ${e.question}\nA: ${e.answer}`).join('\n\n')
+      : 'No knowledge base entries found.';
+
+  } else {
+    // ── Category / catalogue query ──────────────────────────────────────────
+    // Approach 1: use detectedProduct (fast, no AI cost)
+    const productTypeMap = {
+      'Baby Monitor':      'BABY MONITOR',
+      'Dash Cam':          'DASHCAM',
+      // 'Phone' intentionally excluded — too broad (covers both CORDED and CORDLESS PHONE)
+      // Let AI extraction (Approach 2) handle phone-type queries specifically
+      'Security Camera':   'VS-',
+      'Recorder':          'DVR',
+      'Radio':             'UCB',
+      'Power Supply':      'UPP',
+      'Solar Panel':       'SPS',
+    };
+    const mappedType = detectedProduct ? productTypeMap[detectedProduct] : null;
+
+    let catalogue = [];
+    let categoryUsed = null;
+
+    if (mappedType) {
+      const res1 = await pool.query(
+        `SELECT model, product_name, description, warranty_month, status
+         FROM products
+         WHERE product_type ILIKE $1
+         AND warranty_month > 0
+         ORDER BY status ASC, model ASC LIMIT 30`,
+        [`%${mappedType}%`]
+      );
+      catalogue = res1.rows;
+      categoryUsed = `detectedProduct mapping → "${mappedType}"`;
+      console.log(`Catalogue Approach 1 (${categoryUsed}): ${catalogue.length} results`);
+    }
+
+    // Approach 2: use aiCategory already extracted during intent detection (no extra Bedrock call)
+    if (catalogue.length === 0 && aiCategory && aiCategory !== 'UNKNOWN') {
+      categoryUsed = `AI category → "${aiCategory}"`;
+      console.log(`Catalogue Approach 2 (${categoryUsed}): querying...`);
+      const res2 = await pool.query(
+        `SELECT model, product_name, description, warranty_month, status
+         FROM products
+         WHERE product_type ILIKE $1
+         AND warranty_month > 0
+         ORDER BY status ASC, model ASC LIMIT 30`,
+        [`%${aiCategory}%`]
+      );
+      catalogue = res2.rows;
+      console.log(`Catalogue Approach 2 results: ${catalogue.length}`);
+    }
+
+    productContext = catalogue.length > 0
+      ? catalogue.map(p =>
+          `- ${p.model}: ${p.product_name || p.description || ''} | Warranty: ${p.warranty_month}m | Status: ${p.status || 'Active'}`
+        ).join('\n')
+      : 'No matching products found in database.';
+
+    repairContext = null;
+    knowledgeContext = null;
+  }
+
+  const prompt = matchedModel
+    ? `You are a Uniden internal product specialist. Use ONLY the data below — do not add information from your own knowledge.
+
+PRODUCT INFORMATION:
+${productContext}
+
+REPAIR HISTORY:
+${repairContext}
+
+KNOWLEDGE BASE:
+${knowledgeContext}
+
+QUESTION: ${text}
+
+Respond with:
+1. **Status** — confirmed from the data above
+2. **Common Faults** — from repair history only, reference job numbers
+3. **Knowledge Base** — from the entries above only
+4. **Staff Notes** — practical handling notes
+
+Do not invent model names, fault types, or policies not in the data above. No customer email. Use markdown.`
+
+    : `You are a Uniden internal product specialist. Use ONLY the product list below — do not add any models from your own knowledge.
+
+PRODUCTS FROM DATABASE:
+${productContext}
+
+QUESTION: ${text}
+
+List ALL models from the DATABASE LIST above — every single row, no exceptions.
+- Do NOT remove any model based on its name or your own assumptions
+- Do NOT add any model that is not in the list above
+- Group by status: Active first, then Discontinued
+- For each model show: model code, product name, warranty period
+- Use markdown formatting.`;
+
+  const analysis = await callBedrock(prompt, 600);
+  return {
+    intent: 'PRODUCT_LOOKUP',
+    analysis,
+    matchedModel,
+    warrantyMonths,
+    detectedProduct,
+  };
+}
+
+// 7. CUSTOMER_SERVICE: customer email (Hi, my camera has a lag issue...)
 // Full priority-based email drafting (existing logic)
 async function handleCustomerService(text, matchedModel, warrantyMonths, productType, detectedProduct) {
   const [repairJobs, knowledgeEntries, policies, highPriorityTemplate] = await Promise.all([
@@ -677,9 +830,9 @@ exports.handler = async (event) => {
     }
 
     // Step 1: Detect intent first (fast, no DB)
-    const intent = detectIntent(text);
+    const { intent, aiCategory } = await detectIntent(text);
     const scNumber = extractScNumber(text);
-    console.log('Intent:', intent, '| SC:', scNumber);
+    console.log('Intent:', intent, '| SC:', scNumber, '| AI Category:', aiCategory);
 
     // Step 2: Load product index and detect model (cached after cold start)
     const productIndex = await loadProductIndex();
@@ -736,6 +889,9 @@ exports.handler = async (event) => {
         break;
       case 'FAULT_LOOKUP':
         result = await handleFaultLookup(text, matchedModel, warrantyMonths, detectedProduct);
+        break;
+      case 'PRODUCT_LOOKUP':
+        result = await handleProductLookup(text, matchedModel, warrantyMonths, detectedProduct, aiCategory);
         break;
       default:
         result = await handleCustomerService(text, matchedModel, warrantyMonths, productType, detectedProduct);

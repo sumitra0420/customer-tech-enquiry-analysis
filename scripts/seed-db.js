@@ -53,8 +53,8 @@ async function seedProducts() {
          ON CONFLICT (model) DO UPDATE SET
            product_name   = EXCLUDED.product_name,
            description    = EXCLUDED.description,
-           warranty_month = EXCLUDED.warranty_month,
-           product_type   = EXCLUDED.product_type`,
+           warranty_month = EXCLUDED.warranty_month`,
+        // product_type excluded: manual DB corrections must not be overwritten by CSV data
         [
           row.model?.trim().toUpperCase(),
           row.product_name?.trim(),
@@ -194,6 +194,55 @@ async function seedPolicies() {
   }
 }
 
+// ─── 5. Seed discontinued products ────────────────────────────────────────────
+// Updates existing products to 'Discontinued', inserts stub rows for unknown models
+async function seedDiscontinuedProducts() {
+  console.log('Seeding discontinued products...');
+  const records = readCsv('discontinued_products.csv');
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    let updated = 0, inserted = 0;
+    for (const row of records) {
+      const model = row['Model / Product Name']?.trim().toUpperCase();
+      const productName = row['Model / Product Name']?.trim() || null;
+      const productType = row['Sub-Type']?.trim() || null;
+      const description = row['Category']?.trim() || null;
+      if (!model) continue;
+
+      // Update existing: set status + fill only empty fields (don't overwrite existing values)
+      const res = await client.query(
+        `UPDATE products SET
+           status       = 'Discontinued',
+           product_name = COALESCE(NULLIF(product_name, ''), $2),
+           product_type = COALESCE(NULLIF(product_type, ''), $3),
+           description  = COALESCE(NULLIF(description,  ''), $4)
+         WHERE UPPER(model) = $1`,
+        [model, productName, productType, description]
+      );
+      if (res.rowCount > 0) {
+        updated++;
+      } else {
+        // Insert new stub row for models not in products table
+        await client.query(
+          `INSERT INTO products (model, product_name, product_type, description, warranty_month, status)
+           VALUES ($1, $2, $3, $4, 0, 'Discontinued')
+           ON CONFLICT (model) DO NOTHING`,
+          [model, productName, productType, description]
+        );
+        inserted++;
+      }
+    }
+    await client.query('COMMIT');
+    console.log(`  ✓ ${updated} products updated, ${inserted} new stub rows inserted`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 // ─── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`Connecting to ${pool.options.host}:${pool.options.port}/${pool.options.database}...\n`);
@@ -202,6 +251,7 @@ async function main() {
     await seedKnowledgeBase();
     await seedRepairJobs();
     await seedPolicies();
+    await seedDiscontinuedProducts();
     console.log('\nDone! All data seeded successfully.');
   } catch (err) {
     console.error('\nSeeding failed:', err.message);
