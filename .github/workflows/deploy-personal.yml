@@ -67,15 +67,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Lambda dependencies
-        run: |
-          cd lambdas/analyse-enquiry
-          npm ci
+      - name: Install analyse-enquiry dependencies
+        run: cd lambdas/analyse-enquiry && npm ci
 
-      - name: Package Lambda
+      - name: Install db-warmup dependencies
+        run: cd lambdas/db-warmup && npm ci
+
+      - name: Package Lambdas
         run: |
-          cd lambdas/analyse-enquiry
-          zip -r function.zip index.js node_modules/
+          cd lambdas/analyse-enquiry && zip -r function.zip index.js node_modules/
+          cd ../db-warmup && zip -r function.zip index.js node_modules/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -84,8 +85,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.PERSONAL_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.PERSONAL_AWS_REGION }}
 
-      - name: Deploy Lambda
+      - name: Deploy analyse-enquiry Lambda
         run: |
           aws lambda update-function-code \
             --function-name ${{ secrets.PERSONAL_LAMBDA_FUNCTION_NAME }} \
             --zip-file fileb://lambdas/analyse-enquiry/function.zip
+
+      - name: Deploy db-warmup Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.PERSONAL_DB_WARMUP_FUNCTION_NAME }} \
+            --zip-file fileb://lambdas/db-warmup/function.zip
