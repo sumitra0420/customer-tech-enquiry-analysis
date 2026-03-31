@@ -1,0 +1,17 @@
+{
+  "name": "db-restore",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1020.0",
+    "csv-parse": "^5.6.0",
+    "pg": "^8.20.0"
+  }
+}

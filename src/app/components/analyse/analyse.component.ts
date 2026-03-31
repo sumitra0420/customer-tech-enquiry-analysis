@@ -81,7 +81,7 @@ export class AnalyseComponent {
       }
       console.log('Sending analysis request with token:', token);
 
-      const response = await fetch(`${environments.apiUrl}/enquiries/temp/analyse`, {
+      const response = await fetch(`${environments.apiUrl}/analyse`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

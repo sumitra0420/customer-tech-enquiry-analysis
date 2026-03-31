@@ -1,11 +1,11 @@
 output "endpoint" {
-  value = aws_db_instance.main.endpoint
-}
-
-output "address" {
-  value = aws_db_instance.main.address
+  value = aws_rds_cluster.main.endpoint
 }
 
 output "port" {
-  value = aws_db_instance.main.port
-}  
+  value = aws_rds_cluster.main.port
+}
+
+output "cluster_identifier" {
+  value = aws_rds_cluster.main.cluster_identifier
+}

@@ -13,6 +13,7 @@ lambdas/**/*.zip
 
 # Local dev scripts
 scripts/node_modules/
+scripts/db_export.sql
 local-server.js
 
 # S3 data (internal company data)

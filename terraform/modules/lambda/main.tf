@@ -56,6 +56,18 @@ resource "aws_iam_role_policy" "lambda" {
           "aws-marketplace:Subscribe"
         ]
         Resource = "*"
+      },
+      {
+        # Required for Lambda to attach to a VPC (create/describe/delete ENIs)
+        Effect = "Allow"
+        Action = [
+          "ec2:CreateNetworkInterface",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:DeleteNetworkInterface",
+          "ec2:AssignPrivateIpAddresses",
+          "ec2:UnassignPrivateIpAddresses"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -72,9 +84,9 @@ data "archive_file" "placeholder" {
 }
 locals {
   lambda_functions = {
-    "enquiries"       = "lambdas/enquiries"        # Handles all CRUD operations
     "analyse-enquiry" = "lambdas/analyse-enquiry"  # Bedrock analysis
-    "db-init"         = "lambdas/db-init"          # DB initialization
+    "db-warmup"       = "lambdas/db-warmup"        # Wakes Aurora on user login (Cognito post-auth trigger)
+    "db-restore"      = "lambdas/db-restore"       # One-time DB restore from S3 — remove after use
   }
 
   common_env_vars = {
@@ -83,6 +95,7 @@ locals {
     DB_NAME          = var.db_name
     DB_USER          = var.db_username
     DB_PASSWORD      = var.db_password
+    DB_SSL           = "true"
     S3_BUCKET        = var.s3_bucket_name
     BEDROCK_MODEL_ID = var.bedrock_model_id
   }
@@ -95,14 +108,19 @@ resource "aws_lambda_function" "functions" {
   role          = aws_iam_role.lambda.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  timeout       = each.key == "analyse-enquiry" ? 60 : 30
+  timeout       = each.key == "analyse-enquiry" ? 60 : each.key == "db-restore" ? 300 : 30
   memory_size   = each.key == "analyse-enquiry" ? 512 : 256
 
   filename         = data.archive_file.placeholder.output_path
   source_code_hash = data.archive_file.placeholder.output_base64sha256
 
-  # VPC config removed - Lambda runs outside VPC to avoid NAT Gateway costs
-  # Will need to re-add when RDS is enabled
+  dynamic "vpc_config" {
+    for_each = length(var.private_subnet_ids) > 0 ? [1] : []
+    content {
+      subnet_ids         = var.private_subnet_ids
+      security_group_ids = [var.lambda_security_group_id]
+    }
+  }
 
   environment {
     variables = local.common_env_vars
