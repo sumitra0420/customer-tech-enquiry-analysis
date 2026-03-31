@@ -31,7 +31,10 @@ resource "aws_iam_policy" "github_actions_deploy" {
         Sid    = "LambdaDeploy"
         Effect = "Allow"
         Action = "lambda:UpdateFunctionCode"
-        Resource = "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-analyse-enquiry"
+        Resource = [
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-analyse-enquiry",
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-db-warmup"
+        ]
       }
     ]
   })
