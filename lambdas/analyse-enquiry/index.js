@@ -1,7 +1,11 @@
 const { BedrockRuntimeClient, InvokeModelCommand } = require('@aws-sdk/client-bedrock-runtime');
 const { Pool } = require('pg');
 
-const bedrockClient = new BedrockRuntimeClient({ region: 'ap-southeast-2' });
+const bedrockClient = new BedrockRuntimeClient({
+  region: 'ap-southeast-2',
+  maxAttempts: 5,        // retry up to 5 times
+  retryMode: 'adaptive', // slows down automatically when throttled
+});
 
 // ─── Database connection ───────────────────────────────────────────────────────
 const pool = new Pool({
