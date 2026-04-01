@@ -23,6 +23,7 @@ export class AnalyseComponent {
   warrantyMonths = signal<number | null>(null);
   detectedProduct = signal<string | null>(null);
   matchedCases = signal<number | null>(null);
+  productStatus = signal<string | null>(null);
 
   inputPanelWidth = signal(384); // px, default w-96
   private isResizing = false;
@@ -70,6 +71,7 @@ export class AnalyseComponent {
     this.warrantyMonths.set(null);
     this.detectedProduct.set(null);
     this.matchedCases.set(null);
+    this.productStatus.set(null);
     this.isLoading.set(true);
 
     try {
@@ -101,6 +103,7 @@ export class AnalyseComponent {
       this.warrantyMonths.set(data.warrantyMonths || null);
       this.detectedProduct.set(data.detectedProduct || null);
       this.matchedCases.set(data.matchedCases ?? null);
+      this.productStatus.set(data.productStatus || null);
       console.log('Analysis result:', data.analysis);
     } catch (error: any) {
       this.errorMessage.set(error.message || 'An error occurred during analysis');

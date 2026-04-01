@@ -866,6 +866,16 @@ exports.handler = async (event) => {
       }
     }
 
+    // Step 4b: Check if product is discontinued
+    let productStatus = null;
+    if (matchedModel) {
+      const { rows } = await pool.query(
+        'SELECT status FROM products WHERE UPPER(model) = $1 LIMIT 1',
+        [matchedModel.toUpperCase()]
+      );
+      productStatus = rows[0]?.status || null;
+    }
+
     console.log('Model:', matchedModel, '| Warranty:', warrantyMonths, '| Product:', detectedProduct);
 
     if (debugMode) {
@@ -904,7 +914,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: CORS_HEADERS,
-      body: JSON.stringify(result),
+      body: JSON.stringify({ ...result, productStatus }),
     };
   } catch (error) {
     console.error('Error:', error);
