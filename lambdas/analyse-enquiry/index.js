@@ -163,9 +163,9 @@ async function detectIntent(text) {
     // Short text asking about the job → JOB_LOOKUP, longer repair note → TECHNICIAN
     const lower = text.toLowerCase();
     if (/\b(where|find|status|track|locate|look up|what happened|what is|tell me|show me|info|information|details|check|repair job|job number|about)\b/.test(lower)) {
-      return 'JOB_LOOKUP';
+      return { intent: 'JOB_LOOKUP', aiCategory: null };
     }
-    return 'TECHNICIAN';
+    return { intent: 'TECHNICIAN', aiCategory: null };
   }
 
   // Use AI to classify intent AND extract product category in one call
