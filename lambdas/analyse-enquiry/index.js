@@ -229,6 +229,17 @@ async function queryJobByNumber(scNumber) {
   return rows.length > 0 ? rows[0] : null;
 }
 
+async function queryJobsByCustomerName(customerName, excludeJobNumber) {
+  const { rows } = await pool.query(
+    `SELECT job_number, product_model, date_opened, job_action, customer_comment, technician_comment
+     FROM repair_jobs
+     WHERE LOWER(customer_name) = LOWER($1) AND UPPER(job_number) != $2
+     ORDER BY date_opened DESC LIMIT 10`,
+    [customerName, excludeJobNumber.toUpperCase()]
+  );
+  return rows;
+}
+
 async function queryKnowledgeBase(model) {
   if (!model) return [];
   const upper = model.toUpperCase();
@@ -463,6 +474,11 @@ async function handleJobLookup(text, scNumber) {
   const productType = productEntry?.productType || null;
   const detectedProduct = productType ? (mapProductType(productType) || categorizeProduct(jobModel)) : (jobModel ? categorizeProduct(jobModel) : null);
 
+  // Fetch this customer's other repair history
+  const otherJobs = job?.customer_name
+    ? await queryJobsByCustomerName(job.customer_name, scNumber)
+    : [];
+
   const jobContext = job
     ? `Job Number: ${job.job_number}
 Model: ${job.product_model}
@@ -473,14 +489,23 @@ Customer Reported: ${job.customer_comment}
 Technician Comment: ${job.technician_comment || 'Not yet updated'}`
     : `No repair job found with number ${scNumber}.`;
 
+  const historyContext = otherJobs.length > 0
+    ? `\n\nCUSTOMER'S OTHER REPAIR HISTORY (${otherJobs.length} previous jobs):\n` +
+      otherJobs.map(j =>
+        `- ${j.job_number} | ${j.product_model} | ${j.date_opened ? new Date(j.date_opened).toLocaleDateString('en-AU') : 'N/A'} | ${j.job_action || 'N/A'} | ${j.customer_comment || ''}`
+      ).join('\n')
+    : '\n\nNo other repair jobs found for this customer.';
+
   const prompt = `You are a repair tracking assistant for Uniden Australia.
 
 REPAIR JOB RECORD:
 ${jobContext}
+${historyContext}
 
 QUESTION: ${text}
 
 Present the repair job information in a clear, organized format. Include all available details.
+Then include a section "**Customer Repair History**" summarising any previous jobs for this customer (models repaired, dates, outcomes).
 If the job was not found, say so clearly and suggest checking the job number.
 Use markdown formatting with bold labels for each field.`;
 
