@@ -81,7 +81,6 @@ export class AnalyseComponent {
         this.router.navigate(['/auth']);
         return;
       }
-      console.log('Sending analysis request with token:', token);
 
       const response = await fetch(`${environments.apiUrl}/analyse`, {
         method: 'POST',
@@ -91,8 +90,6 @@ export class AnalyseComponent {
         },
         body: JSON.stringify({ text })
       });
-      console.log('API response status:', response.status);
-
       if (!response.ok) {
         throw new Error('Analysis failed. Please try again.');
       }
@@ -104,7 +101,6 @@ export class AnalyseComponent {
       this.detectedProduct.set(data.detectedProduct || null);
       this.matchedCases.set(data.matchedCases ?? null);
       this.productStatus.set(data.productStatus || null);
-      console.log('Analysis result:', data.analysis);
     } catch (error: any) {
       this.errorMessage.set(error.message || 'An error occurred during analysis');
     } finally {
