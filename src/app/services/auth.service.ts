@@ -7,6 +7,7 @@ import {
   getCurrentUser,
   fetchAuthSession,
   confirmSignUp,
+  confirmSignIn,
   SignUpInput,
   SignInInput,
   ConfirmSignUpInput,
@@ -132,21 +133,35 @@ export class AuthService {
 
       if (isSignedIn) {
         await this.checkAuthStatus();
-        return {
-          success: true,
-          message: 'Sign in successful!',
-        };
+        return { success: true, message: 'Sign in successful!' };
       }
 
-      return {
-        success: false,
-        message: 'Sign in incomplete. Please complete additional steps.',
-      };
+      if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        return { success: false, message: 'NEW_PASSWORD_REQUIRED' };
+      }
+
+      return { success: false, message: 'Sign in incomplete. Please complete additional steps.' };
     } catch (error: any) {
       return {
         success: false,
         message: error.message || 'Sign in failed',
       };
+    }
+  }
+
+  /**
+   * Complete new password challenge (invited users on first login)
+   */
+  async confirmNewPassword(newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const { isSignedIn } = await confirmSignIn({ challengeResponse: newPassword });
+      if (isSignedIn) {
+        await this.checkAuthStatus();
+        return { success: true, message: 'Password updated successfully!' };
+      }
+      return { success: false, message: 'Could not complete sign in.' };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Failed to set new password' };
     }
   }
 

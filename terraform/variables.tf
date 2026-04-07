@@ -40,3 +40,9 @@ variable "bedrock_model_id" {
   type        = string
   default     = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 }
+
+variable "invite_only" {
+  description = "true = invite-only (admin creates users); false = self-registration allowed"
+  type        = bool
+  default     = false
+}

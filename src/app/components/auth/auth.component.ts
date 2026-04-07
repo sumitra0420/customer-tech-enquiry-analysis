@@ -16,6 +16,9 @@ export class AuthComponent {
   isSignUp = signal(false);
   needsVerification = signal(false);
   showPasswordStep = signal(false);
+  needsNewPassword = signal(false);
+  newPassword = signal('');
+  confirmNewPassword = signal('');
 
   // Form fields
   name = signal('');
@@ -60,6 +63,26 @@ export class AuthComponent {
 
     this.isLoading.set(false);
 
+    if (result.success) {
+      this.router.navigate(['/analyse']);
+    } else if (result.message === 'NEW_PASSWORD_REQUIRED') {
+      this.needsNewPassword.set(true);
+      this.errorMessage.set('');
+    } else {
+      this.errorMessage.set(result.message);
+    }
+  }
+
+  async onSetNewPassword() {
+    if (!this.isBrowser) return;
+    if (this.newPassword() !== this.confirmNewPassword()) {
+      this.errorMessage.set('Passwords do not match');
+      return;
+    }
+    this.errorMessage.set('');
+    this.isLoading.set(true);
+    const result = await this.authService.confirmNewPassword(this.newPassword());
+    this.isLoading.set(false);
     if (result.success) {
       this.router.navigate(['/analyse']);
     } else {

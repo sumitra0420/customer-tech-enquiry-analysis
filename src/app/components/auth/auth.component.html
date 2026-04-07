@@ -45,6 +45,57 @@
       </div>
     }
 
+    <!-- New Password Required (invited users) -->
+    @else if (needsNewPassword()) {
+      <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-black mb-4">
+            <span class="text-white font-bold text-xl">U</span>
+          </div>
+          <h1 class="text-xl font-bold text-gray-900">Set New Password</h1>
+          <p class="text-sm text-gray-500 mt-1">Please set a new password to continue</p>
+        </div>
+
+        @if (errorMessage()) {
+          <div class="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg mb-4">
+            {{ errorMessage() }}
+          </div>
+        }
+
+        <form (ngSubmit)="onSetNewPassword()" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <input
+              type="password"
+              [value]="newPassword()"
+              (input)="newPassword.set($any($event.target).value)"
+              placeholder="Min 8 chars, uppercase, number, special"
+              required
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+            <input
+              type="password"
+              [value]="confirmNewPassword()"
+              (input)="confirmNewPassword.set($any($event.target).value)"
+              placeholder="Repeat your new password"
+              required
+              class="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <button
+            type="submit"
+            [disabled]="isLoading()"
+            class="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {{ isLoading() ? 'Saving...' : 'Set Password & Sign In' }}
+          </button>
+        </form>
+      </div>
+    }
+
     <!-- Sign Up Form -->
     @else if (isSignUp()) {
       <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">

@@ -6,6 +6,7 @@ module "vpc" {
 module "cognito" {
   source       = "./modules/cognito"
   project_name = var.project_name
+  invite_only  = var.invite_only
 }
 
 module "s3" {
