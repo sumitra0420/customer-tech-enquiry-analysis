@@ -4,11 +4,8 @@ module "vpc" {
 }
 
 module "cognito" {
-  source               = "./modules/cognito"
-  project_name         = var.project_name
-  db_warmup_lambda_arn = module.lambda.function_arns["db-warmup"]
-  aws_region           = var.aws_region
-  aws_account_id       = data.aws_caller_identity.current.account_id
+  source       = "./modules/cognito"
+  project_name = var.project_name
 }
 
 module "s3" {

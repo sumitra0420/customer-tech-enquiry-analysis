@@ -15,16 +15,22 @@ const pool = new Pool({
 exports.handler = async (event) => {
   try {
     const client = await pool.connect();
-    await client.query('SELECT 1'); // lightest possible query — just opens the connection
+    await client.query('SELECT 1');
     client.release();
-    console.log('Aurora warmed up successfully for user:', event.userName);
+    console.log('Aurora warmed up successfully');
   } catch (err) {
-    // IMPORTANT: we catch the error but do NOT rethrow it.
-    // If warmup fails, the user can still log in — we never block login for a DB issue.
-    console.error('DB warmup failed (non-fatal):', err.message);
+    console.error('DB warmup failed:', err.message);
+    return {
+      statusCode: 500,
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: 'warmup failed',
+    };
   }
 
-  // MUST return the event unchanged — this is required by ALL Cognito Lambda triggers.
-  // If you don't return the event, Cognito treats it as an error and blocks the login.
-  return event;
+  // API Gateway HTTP response
+  return {
+    statusCode: 200,
+    headers: { 'Access-Control-Allow-Origin': '*' },
+    body: 'ok',
+  };
 };
