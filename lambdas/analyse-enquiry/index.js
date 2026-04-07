@@ -850,6 +850,8 @@ exports.handler = async (event) => {
     const body = JSON.parse(event.body || '{}');
     const { text, debugMode } = body;
 
+    console.log('USER ENQUIRY:', text);
+
     if (!text || !text.trim()) {
       return {
         statusCode: 400,
