@@ -40,9 +40,11 @@ module "lambda" {
 }
 
 module "frontend" {
-  source       = "./modules/frontend"
-  project_name = var.project_name
-  environment  = var.environment
+  source              = "./modules/frontend"
+  project_name        = var.project_name
+  environment         = var.environment
+  domain_aliases      = ["uniden.tech", "www.uniden.tech"]
+  acm_certificate_arn = "arn:aws:acm:us-east-1:599214518259:certificate/5e27a30d-8ed4-4361-ba56-17bc25214b6f"
 }
 
 module "api_gateway" {
