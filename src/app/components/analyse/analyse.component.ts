@@ -1,4 +1,4 @@
-import { Component, signal, PLATFORM_ID, inject } from '@angular/core';
+import { Component, signal, PLATFORM_ID, inject, OnInit, OnDestroy } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -13,7 +13,7 @@ import { environments } from '../../../environments/environments';
   templateUrl: './analyse.component.html',
   styleUrl: './analyse.component.css'
 })
-export class AnalyseComponent {
+export class AnalyseComponent implements OnInit, OnDestroy {
   enquiryText = signal('');
   analysisResult = signal<string | null>(null);
   isLoading = signal(false);
@@ -26,7 +26,9 @@ export class AnalyseComponent {
   productStatus = signal<string | null>(null);
 
   inputPanelWidth = signal(384); // px, default w-96
+  dbStatus = signal<'checking' | 'connected' | 'offline'>('checking');
   private isResizing = false;
+  private warmupInterval: any = null;
 
   private platformId = inject(PLATFORM_ID);
   private isBrowser = isPlatformBrowser(this.platformId);
@@ -35,6 +37,25 @@ export class AnalyseComponent {
     private authService: AuthService,
     private router: Router
   ) {}
+
+  ngOnInit() {
+    if (!this.isBrowser) return;
+    this.pingWarmup();
+    this.warmupInterval = setInterval(() => this.pingWarmup(), 2 * 60 * 1000);
+  }
+
+  ngOnDestroy() {
+    if (this.warmupInterval) clearInterval(this.warmupInterval);
+  }
+
+  private async pingWarmup() {
+    try {
+      const res = await fetch(`${environments.apiUrl}/warmup`);
+      this.dbStatus.set(res.ok ? 'connected' : 'offline');
+    } catch {
+      this.dbStatus.set('offline');
+    }
+  }
 
   onResizeStart(event: MouseEvent) {
     if (!this.isBrowser) return;

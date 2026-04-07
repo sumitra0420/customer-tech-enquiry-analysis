@@ -78,6 +78,19 @@
       class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0"
     >
       <h1 class="text-gray-800 font-semibold text-sm">Enquiry Analysis</h1>
+      <!-- DB Status Indicator -->
+      <div class="flex items-center gap-1.5">
+        @if (dbStatus() === 'connected') {
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          <span class="text-xs text-green-600">DB Connected</span>
+        } @else if (dbStatus() === 'offline') {
+          <span class="w-2 h-2 rounded-full bg-red-500"></span>
+          <span class="text-xs text-red-500">DB Offline</span>
+        } @else {
+          <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
+          <span class="text-xs text-yellow-600">Connecting...</span>
+        }
+      </div>
     </div>
 
     <!-- Body -->
