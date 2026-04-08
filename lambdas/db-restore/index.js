@@ -118,7 +118,8 @@ async function seedRepairJobs(bucket) {
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
            ON CONFLICT (job_number) DO UPDATE SET
              serial_number = EXCLUDED.serial_number,
-             replacement_serial_number = EXCLUDED.replacement_serial_number`,
+             replacement_serial_number = EXCLUDED.replacement_serial_number,
+             technician_comment = EXCLUDED.technician_comment`,
           [
             row.job_number?.trim(),
             row.product_model?.trim().toUpperCase() || null,
