@@ -292,10 +292,17 @@
         }
 
         <!-- Create account link -->
-        <p class="mt-6 text-center text-xs text-gray-500">
-          Don't have an account?
-          <button (click)="toggleMode()" class="text-blue-600 hover:underline font-medium cursor-pointer">Create account</button>
-        </p>
+        @if (isInviteOnly) {
+          <p class="mt-6 text-center text-xs text-gray-500">
+            Account creation is by invitation only.<br>
+            Email <a href="mailto:sumitraj@uniden.com.au" class="text-blue-600 hover:underline">sumitraj@uniden.com.au</a> to request access.
+          </p>
+        } @else {
+          <p class="mt-6 text-center text-xs text-gray-500">
+            Don't have an account?
+            <button (click)="toggleMode()" class="text-blue-600 hover:underline font-medium cursor-pointer">Create account</button>
+          </p>
+        }
 
       </div>
     }

@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { environments } from '../../../environments/environments';
 
+
 @Component({
   selector: 'app-auth',
   standalone: true,
@@ -13,6 +14,7 @@ import { environments } from '../../../environments/environments';
   styleUrl: './auth.component.css'
 })
 export class AuthComponent {
+  isInviteOnly = environments.inviteOnly;
   isSignUp = signal(false);
   needsVerification = signal(false);
   showPasswordStep = signal(false);

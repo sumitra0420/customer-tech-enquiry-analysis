@@ -63,6 +63,7 @@ resource "local_file" "frontend_env" {
 export const environments = {
   production: false,
   apiUrl: '${module.api_gateway.api_url}',
+  inviteOnly: ${var.invite_only},
   cognito: {
     userPoolId: '${module.cognito.user_pool_id}',
     userPoolClientId: '${module.cognito.client_id}',
