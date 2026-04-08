@@ -73,10 +73,14 @@ jobs:
       - name: Install db-warmup dependencies
         run: cd lambdas/db-warmup && npm ci
 
+      - name: Install db-restore dependencies
+        run: cd lambdas/db-restore && npm ci
+
       - name: Package Lambdas
         run: |
           cd lambdas/analyse-enquiry && zip -r function.zip index.js node_modules/
           cd ../db-warmup && zip -r function.zip index.js node_modules/
+          cd ../db-restore && zip -r function.zip index.js node_modules/
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -96,3 +100,9 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ secrets.PERSONAL_DB_WARMUP_FUNCTION_NAME }} \
             --zip-file fileb://lambdas/db-warmup/function.zip
+
+      - name: Deploy db-restore Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.PERSONAL_DB_RESTORE_FUNCTION_NAME }} \
+            --zip-file fileb://lambdas/db-restore/function.zip
