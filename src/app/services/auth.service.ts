@@ -122,7 +122,6 @@ export class AuthService {
    * Sign in a user
    */
   async signIn(email: string, password: string): Promise<{ success: boolean; message: string }> {
-    console.log('Attempting to sign in user:', email);
     try {
       const signInInput: SignInInput = {
         username: email,
@@ -182,7 +181,6 @@ export class AuthService {
    * Get the current user's JWT token for API calls
    */
   async getIdToken(): Promise<string | null> {
-    console.log('Fetching ID token for current user...');
     try {
       const session = await fetchAuthSession();
       return session.tokens?.idToken?.toString() || null;

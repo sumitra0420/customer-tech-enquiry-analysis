@@ -114,9 +114,11 @@ async function seedRepairJobs(bucket) {
       const batch = records.slice(i, i + BATCH_SIZE);
       for (const row of batch) {
         await client.query(
-          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, date_opened, job_action, technician_comment)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (job_number) DO NOTHING`,
+          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, date_opened, job_action, technician_comment, serial_number, replacement_serial_number)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+           ON CONFLICT (job_number) DO UPDATE SET
+             serial_number = EXCLUDED.serial_number,
+             replacement_serial_number = EXCLUDED.replacement_serial_number`,
           [
             row.job_number?.trim(),
             row.product_model?.trim().toUpperCase() || null,
@@ -125,6 +127,8 @@ async function seedRepairJobs(bucket) {
             row.date_opened || null,
             row.job_action?.trim(),
             row.technician_comment?.trim(),
+            row.serial_number?.trim() || null,
+            row.replacement_serial_number?.trim() || null,
           ]
         );
       }
@@ -246,15 +250,19 @@ async function createSchema() {
       CREATE INDEX IF NOT EXISTS idx_kb_product_model ON knowledge_base(product_model);
 
       CREATE TABLE IF NOT EXISTS repair_jobs (
-        job_number         VARCHAR(50) PRIMARY KEY,
-        product_model      VARCHAR(100) REFERENCES products(model) ON DELETE SET NULL,
-        customer_comment   TEXT,
-        customer_name      TEXT,
-        date_opened        TIMESTAMP,
-        job_action         VARCHAR(100),
-        technician_comment TEXT
+        job_number                VARCHAR(50) PRIMARY KEY,
+        product_model             VARCHAR(100) REFERENCES products(model) ON DELETE SET NULL,
+        customer_comment          TEXT,
+        customer_name             TEXT,
+        date_opened               TIMESTAMP,
+        job_action                VARCHAR(100),
+        technician_comment        TEXT,
+        serial_number             VARCHAR(100),
+        replacement_serial_number VARCHAR(100)
       );
       CREATE INDEX IF NOT EXISTS idx_repair_jobs_product_model ON repair_jobs(product_model);
+      ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS serial_number VARCHAR(100);
+      ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS replacement_serial_number VARCHAR(100);
 
       CREATE TABLE IF NOT EXISTS policies (
         policy_id       VARCHAR(20) PRIMARY KEY,
