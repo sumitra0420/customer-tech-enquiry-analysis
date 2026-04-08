@@ -3,6 +3,7 @@ import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { environments } from '../../../environments/environments';
 
 @Component({
   selector: 'app-auth',
