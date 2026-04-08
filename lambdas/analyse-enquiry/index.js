@@ -486,7 +486,9 @@ Customer: ${job.customer_name}
 Date Opened: ${job.date_opened ? new Date(job.date_opened).toLocaleDateString('en-AU') : 'N/A'}
 Job Action: ${job.job_action}
 Customer Reported: ${job.customer_comment}
-Technician Comment: ${job.technician_comment || 'Not yet updated'}`
+Technician Comment: ${job.technician_comment || 'Not yet updated'}
+Original Serial Number: ${job.serial_number || 'N/A'}
+Replacement Serial Number: ${job.replacement_serial_number || 'N/A'}`
     : `No repair job found with number ${scNumber}.`;
 
   const historyContext = otherJobs.length > 0
