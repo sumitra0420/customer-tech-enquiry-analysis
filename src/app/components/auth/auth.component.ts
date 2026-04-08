@@ -3,8 +3,6 @@ import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { environments } from '../../../environments/environments';
-
 
 @Component({
   selector: 'app-auth',
@@ -14,7 +12,6 @@ import { environments } from '../../../environments/environments';
   styleUrl: './auth.component.css'
 })
 export class AuthComponent {
-  isInviteOnly = environments.inviteOnly;
   isSignUp = signal(false);
   needsVerification = signal(false);
   showPasswordStep = signal(false);
@@ -115,6 +112,8 @@ export class AuthComponent {
     if (result.success) {
       this.successMessage.set(result.message);
       this.needsVerification.set(true);
+    } else if (result.message?.toLowerCase().includes('not permitted')) {
+      this.errorMessage.set('Account creation is by invitation only. Please email sumitraj@uniden.com.au to request access.');
     } else {
       this.errorMessage.set(result.message);
     }
