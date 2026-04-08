@@ -33,7 +33,8 @@ resource "aws_iam_policy" "github_actions_deploy" {
         Action = "lambda:UpdateFunctionCode"
         Resource = [
           "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-analyse-enquiry",
-          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-db-warmup"
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-db-warmup",
+          "arn:aws:lambda:${var.aws_region}:${data.aws_caller_identity.current.account_id}:function:${var.project_name}-db-restore"
         ]
       }
     ]
