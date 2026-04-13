@@ -156,16 +156,47 @@ function extractScNumber(text) {
   return match ? match[0].toUpperCase() : null;
 }
 
+function extractUnitTrackingTerms(text) {
+  let customerName = null, trackingNumber = null, reference = null;
+
+  // RA/repair reference: RA followed by digits
+  const raMatch = text.match(/\bRA\d+\b/i);
+  if (raMatch) reference = raMatch[0].toUpperCase();
+
+  // Tracking number: long numeric string (8+ digits)
+  const trackingMatch = text.match(/\b\d{8,}\b/);
+  if (trackingMatch) trackingNumber = trackingMatch[0];
+
+  // Customer name: extract text after "of" or "for"
+  // e.g. "Where is the product of WILLIAM MCMAUGH?" → "WILLIAM MCMAUGH"
+  const ofMatch = text.match(/\bof\s+([A-Za-z][A-Za-z\s]{2,40})(?:\?|$|,)/i);
+  if (ofMatch) {
+    customerName = ofMatch[1].trim().toUpperCase();
+  } else {
+    const forMatch = text.match(/\bfor\s+([A-Za-z][A-Za-z\s]{2,40})(?:\?|$|,)/i);
+    if (forMatch) customerName = forMatch[1].trim().toUpperCase();
+  }
+
+  return { customerName, trackingNumber, reference };
+}
+
 async function detectIntent(text) {
-  // SC number checks are reliable regex — handle before AI call
+  // SC number: reliable regex — short-circuit before Bedrock
   const scNumber = extractScNumber(text);
   if (scNumber) {
-    // Short text asking about the job → JOB_LOOKUP, longer repair note → TECHNICIAN
     const lower = text.toLowerCase();
     if (/\b(where|find|status|track|locate|look up|what happened|what is|tell me|show me|info|information|details|check|repair job|job number|about)\b/.test(lower)) {
       return { intent: 'JOB_LOOKUP', aiCategory: null };
     }
     return { intent: 'TECHNICIAN', aiCategory: null };
+  }
+
+  // Unit tracking: RA number, long tracking number, or parcel/unit keywords — short-circuit before Bedrock
+  const { customerName, trackingNumber, reference } = extractUnitTrackingTerms(text);
+  const hasTrackingSignal = reference || trackingNumber ||
+    /\b(parcel|connote|courier|received|tracking|where is the unit|where is the product|where is the parcel|unit of|product of|parcel of)\b/i.test(text);
+  if (hasTrackingSignal) {
+    return { intent: 'UNIT_TRACKING', aiCategory: null };
   }
 
   // Use AI to classify intent AND extract product category in one call
@@ -766,6 +797,7 @@ function extractUnitTrackingTerms(text) {
 }
 
 async function handleUnitTracking(text) {
+  // Terms already extracted by detectIntent via regex — no extra Bedrock call needed
   const { customerName, trackingNumber, reference } = extractUnitTrackingTerms(text);
 
   console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference);
