@@ -35,12 +35,18 @@ resource "aws_iam_role_policy" "lambda" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:PutObject"
         ]
         Resource = [
           var.s3_bucket_arn,
           "${var.s3_bucket_arn}/*"
         ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["lambda:InvokeFunction"]
+        Resource = "arn:aws:lambda:*:*:function:${var.project_name}-db-restore"
       },
       {
         Effect = "Allow"
@@ -82,6 +88,16 @@ data "archive_file" "placeholder" {
     filename = "index.js"
   }
 }
+
+data "archive_file" "placeholder_python" {
+  type        = "zip"
+  output_path = "${path.module}/placeholder_python.zip"
+
+  source {
+    content  = "def handler(event, context): return {'statusCode': 200}"
+    filename = "index.py"
+  }
+}
 locals {
   lambda_functions = {
     "analyse-enquiry" = "lambdas/analyse-enquiry"  # Bedrock analysis
@@ -99,6 +115,58 @@ locals {
     S3_BUCKET        = var.s3_bucket_name
     BEDROCK_MODEL_ID = var.bedrock_model_id
   }
+}
+
+# repair-data-cleaning: Python Lambda triggered by S3 upload
+# Upload raw NetSuite CSV to s3://bucket/uploads/netsuite/filename.csv → auto-cleans → db-restore
+resource "aws_lambda_function" "repair_data_cleaning" {
+  function_name = "${var.project_name}-repair-data-cleaning"
+  role          = aws_iam_role.lambda.arn
+  handler       = "index.handler"
+  runtime       = "python3.11"
+  timeout       = 300
+  memory_size   = 512
+
+  filename         = data.archive_file.placeholder_python.output_path
+  source_code_hash = data.archive_file.placeholder_python.output_base64sha256
+
+  # AWS managed pandas layer for ap-southeast-2
+  # Check latest version: https://aws-sdk-pandas.readthedocs.io/en/stable/layers.html
+  layers = ["arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python311:18"]
+
+  environment {
+    variables = {
+      S3_BUCKET                = var.s3_bucket_name
+      DB_RESTORE_FUNCTION_NAME = "${var.project_name}-db-restore"
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-repair-data-cleaning"
+  }
+}
+
+# Allow S3 to invoke repair-data-cleaning
+resource "aws_lambda_permission" "s3_invoke_repair_cleaning" {
+  statement_id  = "AllowS3Invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.repair_data_cleaning.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = var.s3_bucket_arn
+}
+
+# S3 trigger: file uploaded to uploads/netsuite/*.csv → Lambda fires
+resource "aws_s3_bucket_notification" "netsuite_upload" {
+  bucket = var.s3_bucket_name
+
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.repair_data_cleaning.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "uploads/netsuite/"
+    filter_suffix       = ".csv"
+  }
+
+  depends_on = [aws_lambda_permission.s3_invoke_repair_cleaning]
 }
 
 resource "aws_lambda_function" "functions" {
