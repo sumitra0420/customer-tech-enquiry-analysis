@@ -10,6 +10,7 @@ terraform/.terraform.lock.hcl
 # Lambda artifacts
 lambdas/**/node_modules/
 lambdas/**/*.zip
+lambdas/**/response.json
 terraform/**/*.zip
 
 # Local dev scripts

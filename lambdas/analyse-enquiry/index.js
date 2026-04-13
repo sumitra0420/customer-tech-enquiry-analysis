@@ -737,27 +737,36 @@ List ALL models from the DATABASE LIST above — every single row, no exceptions
 
 // 7. UNIT_TRACKING: "Where is Cameron Gerhardy's parcel?" / "Has SC tracking 01993... been received?"
 // Checks daily_connote (warehouse receipt) + repair_jobs (booking status)
-async function handleUnitTracking(text) {
-  // Extract search terms with AI
-  const extraction = await callBedrock(
-    `Extract search details from this unit tracking enquiry.
-Reply in this exact format (one line each):
-NAME: <customer or sender name, or NONE>
-TRACKING: <tracking number, or NONE>
-REFERENCE: <RA or repair reference number e.g. RA0010590, or NONE>
-
-Enquiry: "${text.substring(0, 300)}"`,
-    100
-  );
-
+function extractUnitTrackingTerms(text) {
   let customerName = null, trackingNumber = null, reference = null;
-  const nameMatch    = extraction.match(/NAME:\s*(.+)/i);
-  const trackingMatch = extraction.match(/TRACKING:\s*(.+)/i);
-  const refMatch     = extraction.match(/REFERENCE:\s*(.+)/i);
 
-  if (nameMatch    && nameMatch[1].trim().toUpperCase()    !== 'NONE') customerName  = nameMatch[1].trim();
-  if (trackingMatch && trackingMatch[1].trim().toUpperCase() !== 'NONE') trackingNumber = trackingMatch[1].trim();
-  if (refMatch     && refMatch[1].trim().toUpperCase()     !== 'NONE') reference     = refMatch[1].trim();
+  // RA/repair reference: RA followed by digits
+  const raMatch = text.match(/\bRA\d+\b/i);
+  if (raMatch) reference = raMatch[0].toUpperCase();
+
+  // Tracking number: long numeric string (8+ digits)
+  const trackingMatch = text.match(/\b\d{8,}\b/);
+  if (trackingMatch) trackingNumber = trackingMatch[0];
+
+  // Customer name: text after common phrases
+  const nameMatch = text.match(
+    /(?:unit of|product of|parcel of|tracking of|where is|status of|find|check|locate)\s+([A-Z][A-Z\s]{2,40}?)(?:\?|$|,|\band\b)/i
+  );
+  if (nameMatch) {
+    customerName = nameMatch[1].trim();
+  } else if (!trackingNumber && !reference) {
+    // Fallback: extract capitalised words as name (exclude common words)
+    const stopWords = new Set(['WHERE', 'IS', 'THE', 'UNIT', 'PRODUCT', 'PARCEL', 'OF', 'FOR', 'HAS', 'BEEN', 'RECEIVED', 'STATUS', 'FIND', 'CHECK']);
+    const words = text.toUpperCase().match(/\b[A-Z]{2,}\b/g) || [];
+    const nameWords = words.filter(w => !stopWords.has(w));
+    if (nameWords.length > 0) customerName = nameWords.join(' ');
+  }
+
+  return { customerName, trackingNumber, reference };
+}
+
+async function handleUnitTracking(text) {
+  const { customerName, trackingNumber, reference } = extractUnitTrackingTerms(text);
 
   console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference);
 
