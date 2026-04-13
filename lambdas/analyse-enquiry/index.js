@@ -156,30 +156,6 @@ function extractScNumber(text) {
   return match ? match[0].toUpperCase() : null;
 }
 
-function extractUnitTrackingTerms(text) {
-  let customerName = null, trackingNumber = null, reference = null;
-
-  // RA/repair reference: RA followed by digits
-  const raMatch = text.match(/\bRA\d+\b/i);
-  if (raMatch) reference = raMatch[0].toUpperCase();
-
-  // Tracking number: long numeric string (8+ digits)
-  const trackingMatch = text.match(/\b\d{8,}\b/);
-  if (trackingMatch) trackingNumber = trackingMatch[0];
-
-  // Customer name: extract text after "of" or "for"
-  // e.g. "Where is the product of WILLIAM MCMAUGH?" → "WILLIAM MCMAUGH"
-  const ofMatch = text.match(/\bof\s+([A-Za-z][A-Za-z\s]{2,40})(?:\?|$|,)/i);
-  if (ofMatch) {
-    customerName = ofMatch[1].trim().toUpperCase();
-  } else {
-    const forMatch = text.match(/\bfor\s+([A-Za-z][A-Za-z\s]{2,40})(?:\?|$|,)/i);
-    if (forMatch) customerName = forMatch[1].trim().toUpperCase();
-  }
-
-  return { customerName, trackingNumber, reference };
-}
-
 async function detectIntent(text) {
   // SC number: reliable regex — short-circuit before Bedrock
   const scNumber = extractScNumber(text);
@@ -191,25 +167,32 @@ async function detectIntent(text) {
     return { intent: 'TECHNICIAN', aiCategory: null };
   }
 
-  // Unit tracking: RA number, long tracking number, or parcel/unit keywords — short-circuit before Bedrock
-  const { customerName, trackingNumber, reference } = extractUnitTrackingTerms(text);
-  const hasTrackingSignal = reference || trackingNumber ||
-    /\b(parcel|connote|courier|received|tracking|where is the unit|where is the product|where is the parcel|unit of|product of|parcel of)\b/i.test(text);
-  if (hasTrackingSignal) {
-    return { intent: 'UNIT_TRACKING', aiCategory: null };
+  // RA number or long tracking number — reliable regex, short-circuit before Bedrock
+  const raMatch = text.match(/\bRA\d+\b/i);
+  const trackingMatch = text.match(/\b\d{8,}\b/);
+  if (raMatch || trackingMatch) {
+    return {
+      intent: 'UNIT_TRACKING',
+      aiCategory: null,
+      unitTrackingTerms: {
+        customerName: null,
+        trackingNumber: trackingMatch ? trackingMatch[0] : null,
+        reference: raMatch ? raMatch[0].toUpperCase() : null,
+      },
+    };
   }
 
-  // Use AI to classify intent AND extract product category in one call
+  // Use AI to classify intent, extract product category, and extract unit tracking terms — all in one call
   const prompt = `You are a classifier for a Uniden Australia internal support tool.
 
-Classify the enquiry into ONE intent, and if PRODUCT_LOOKUP, also identify the product category.
+Classify the enquiry into ONE intent, and extract additional data based on intent.
 
 INTENTS:
 - FAULT_LOOKUP: asking about common faults, issues, or problems for a specific product model
 - KNOWLEDGE_LOOKUP: asking how to use, reset, set up, pair, or troubleshoot a product
 - POLICY_LOOKUP: asking about company policy, warranty rules, repair fees, return process, RA process
 - PRODUCT_LOOKUP: asking about product availability, discontinued status, or what models exist in a category
-- UNIT_TRACKING: asking where a parcel or unit is, whether it has been received at the warehouse, tracking a delivery, or checking if a customer's unit has been booked into the repair system — search by customer/sender name, tracking number, or RA/repair reference number
+- UNIT_TRACKING: asking where a parcel or unit is, whether it has been received at the warehouse, tracking a delivery, or checking if a customer's unit has been booked into the repair system
 - CUSTOMER_SERVICE: a customer complaint or request that needs a drafted email response
 
 PRODUCT CATEGORIES (only for PRODUCT_LOOKUP): CORDED, CORDLESS PHONE, DASHCAM, BABY MONITORS, VS- WIRELESS, VS- WIRED, UCB - HANDHELD RADIOS, UCB - MOBILE RADIOS, MARINE RADIO, SCANNER, NAVI, JUMP STARTER, ACCESSORIES, UNKNOWN
@@ -217,18 +200,38 @@ PRODUCT CATEGORIES (only for PRODUCT_LOOKUP): CORDED, CORDLESS PHONE, DASHCAM, B
 ENQUIRY: "${text.substring(0, 300)}"
 
 Reply in this exact format (one line):
-INTENT|CATEGORY
-Examples: PRODUCT_LOOKUP|CORDED  or  FAULT_LOOKUP|NONE  or  CUSTOMER_SERVICE|NONE`;
+INTENT|CATEGORY|NAME|TRACKING|REFERENCE
 
-  const result = await callBedrock(prompt, 20);
-  const [intentRaw, categoryRaw] = result.trim().toUpperCase().split('|');
-  const intent = intentRaw?.replace(/[^A-Z_]/g, '') || 'CUSTOMER_SERVICE';
-  const category = categoryRaw?.replace(/[^A-Z0-9\- ]/g, '').trim() || null;
+- CATEGORY: product category for PRODUCT_LOOKUP, else NONE
+- NAME: customer or sender name for UNIT_TRACKING, else NONE
+- TRACKING: tracking number for UNIT_TRACKING, else NONE
+- REFERENCE: RA or repair reference number for UNIT_TRACKING, else NONE
+
+Examples:
+PRODUCT_LOOKUP|CORDED|NONE|NONE|NONE
+FAULT_LOOKUP|NONE|NONE|NONE|NONE
+UNIT_TRACKING|NONE|BENJAMIN ROSE|NONE|NONE
+UNIT_TRACKING|NONE|NONE|NONE|RA0010590`;
+
+  const result = await callBedrock(prompt, 50);
+  const parts = result.trim().toUpperCase().split('|');
+  const intentRaw  = parts[0]?.replace(/[^A-Z_]/g, '') || 'CUSTOMER_SERVICE';
+  const categoryRaw = parts[1]?.replace(/[^A-Z0-9\- ]/g, '').trim() || null;
+  const nameRaw     = parts[2]?.trim() || null;
+  const trackingRaw = parts[3]?.trim() || null;
+  const refRaw      = parts[4]?.trim() || null;
 
   const valid = ['FAULT_LOOKUP', 'KNOWLEDGE_LOOKUP', 'POLICY_LOOKUP', 'PRODUCT_LOOKUP', 'UNIT_TRACKING', 'CUSTOMER_SERVICE'];
+  const intent = valid.includes(intentRaw) ? intentRaw : 'CUSTOMER_SERVICE';
+
   return {
-    intent: valid.includes(intent) ? intent : 'CUSTOMER_SERVICE',
-    aiCategory: category && category !== 'NONE' ? category : null,
+    intent,
+    aiCategory: categoryRaw && categoryRaw !== 'NONE' ? categoryRaw : null,
+    unitTrackingTerms: intent === 'UNIT_TRACKING' ? {
+      customerName:  nameRaw     && nameRaw     !== 'NONE' ? nameRaw     : null,
+      trackingNumber: trackingRaw && trackingRaw !== 'NONE' ? trackingRaw : null,
+      reference:     refRaw      && refRaw      !== 'NONE' ? refRaw      : null,
+    } : null,
   };
 }
 
@@ -768,9 +771,8 @@ List ALL models from the DATABASE LIST above — every single row, no exceptions
 
 // 7. UNIT_TRACKING: "Where is Cameron Gerhardy's parcel?" / "Has SC tracking 01993... been received?"
 // Checks daily_connote (warehouse receipt) + repair_jobs (booking status)
-async function handleUnitTracking(text) {
-  // Terms already extracted by detectIntent via regex — no extra Bedrock call needed
-  const { customerName, trackingNumber, reference } = extractUnitTrackingTerms(text);
+async function handleUnitTracking(text, unitTrackingTerms = {}) {
+  const { customerName, trackingNumber, reference } = unitTrackingTerms;
 
   console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference);
 
@@ -994,7 +996,7 @@ exports.handler = async (event) => {
     }
 
     // Step 1: Detect intent first (fast, no DB)
-    const { intent, aiCategory } = await detectIntent(text);
+    const { intent, aiCategory, unitTrackingTerms } = await detectIntent(text);
     const scNumber = extractScNumber(text);
     console.log('Intent:', intent, '| SC:', scNumber, '| AI Category:', aiCategory);
 
@@ -1068,7 +1070,7 @@ exports.handler = async (event) => {
         result = await handleProductLookup(text, matchedModel, warrantyMonths, detectedProduct, aiCategory);
         break;
       case 'UNIT_TRACKING':
-        result = await handleUnitTracking(text);
+        result = await handleUnitTracking(text, unitTrackingTerms || {});
         break;
       default:
         result = await handleCustomerService(text, matchedModel, warrantyMonths, productType, detectedProduct);
