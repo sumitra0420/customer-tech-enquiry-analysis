@@ -180,6 +180,43 @@ async function seedPolicies(bucket) {
   }
 }
 
+async function seedConnote(bucket) {
+  console.log('Seeding daily_connote...');
+  let records;
+  try {
+    records = await readCsvFromS3(bucket, 'database/daily_connote.csv');
+  } catch (err) {
+    console.log('  No daily_connote.csv found, skipping.');
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('TRUNCATE TABLE daily_connote RESTART IDENTITY');
+    for (const row of records) {
+      await client.query(
+        `INSERT INTO daily_connote (date_received, courier, tracking, reference, sender, received_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          row.date_received || null,
+          row.courier?.trim() || null,
+          row.tracking?.trim() || null,
+          row.reference?.trim() || null,
+          row.sender?.trim() || null,
+          row.received_by?.trim() || null,
+        ]
+      );
+    }
+    await client.query('COMMIT');
+    console.log(`  ✓ ${records.length} connote entries`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function seedDiscontinuedProducts(bucket) {
   console.log('Seeding discontinued products...');
   const records = await readCsvFromS3(bucket, 'database/discontinued_products.csv');
@@ -276,6 +313,20 @@ async function createSchema() {
         source_file     VARCHAR(255)
       );
       CREATE INDEX IF NOT EXISTS idx_policies_category ON policies(category);
+
+      CREATE TABLE IF NOT EXISTS daily_connote (
+        id           SERIAL PRIMARY KEY,
+        date_received DATE,
+        courier      VARCHAR(100),
+        tracking     VARCHAR(500),
+        reference    VARCHAR(200),
+        sender       VARCHAR(200),
+        received_by  VARCHAR(100)
+      );
+      CREATE INDEX IF NOT EXISTS idx_connote_sender   ON daily_connote(LOWER(sender));
+      CREATE INDEX IF NOT EXISTS idx_connote_tracking ON daily_connote(tracking);
+      CREATE INDEX IF NOT EXISTS idx_connote_reference ON daily_connote(reference);
+      CREATE INDEX IF NOT EXISTS idx_connote_date     ON daily_connote(date_received);
     `);
     console.log('  ✓ Schema ready');
   } finally {
@@ -294,6 +345,7 @@ exports.handler = async (event) => {
     await seedRepairJobs(bucket);
     await seedPolicies(bucket);
     await seedDiscontinuedProducts(bucket);
+    await seedConnote(bucket);
     console.log('Done! All tables seeded.');
     return { statusCode: 200, body: 'Seeded successfully' };
   } finally {

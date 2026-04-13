@@ -12,4 +12,8 @@ output "function_names" {
 
 output "repair_data_cleaning_function_name" {
   value = aws_lambda_function.repair_data_cleaning.function_name
+}
+
+output "connote_cleaning_function_name" {
+  value = aws_lambda_function.connote_cleaning.function_name
 }   

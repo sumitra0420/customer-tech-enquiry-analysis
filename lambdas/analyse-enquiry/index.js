@@ -178,6 +178,7 @@ INTENTS:
 - KNOWLEDGE_LOOKUP: asking how to use, reset, set up, pair, or troubleshoot a product
 - POLICY_LOOKUP: asking about company policy, warranty rules, repair fees, return process, RA process
 - PRODUCT_LOOKUP: asking about product availability, discontinued status, or what models exist in a category
+- UNIT_TRACKING: asking where a parcel or unit is, whether it has been received at the warehouse, tracking a delivery, or checking if a customer's unit has been booked into the repair system — search by customer/sender name, tracking number, or RA/repair reference number
 - CUSTOMER_SERVICE: a customer complaint or request that needs a drafted email response
 
 PRODUCT CATEGORIES (only for PRODUCT_LOOKUP): CORDED, CORDLESS PHONE, DASHCAM, BABY MONITORS, VS- WIRELESS, VS- WIRED, UCB - HANDHELD RADIOS, UCB - MOBILE RADIOS, MARINE RADIO, SCANNER, NAVI, JUMP STARTER, ACCESSORIES, UNKNOWN
@@ -193,7 +194,7 @@ Examples: PRODUCT_LOOKUP|CORDED  or  FAULT_LOOKUP|NONE  or  CUSTOMER_SERVICE|NON
   const intent = intentRaw?.replace(/[^A-Z_]/g, '') || 'CUSTOMER_SERVICE';
   const category = categoryRaw?.replace(/[^A-Z0-9\- ]/g, '').trim() || null;
 
-  const valid = ['FAULT_LOOKUP', 'KNOWLEDGE_LOOKUP', 'POLICY_LOOKUP', 'PRODUCT_LOOKUP', 'CUSTOMER_SERVICE'];
+  const valid = ['FAULT_LOOKUP', 'KNOWLEDGE_LOOKUP', 'POLICY_LOOKUP', 'PRODUCT_LOOKUP', 'UNIT_TRACKING', 'CUSTOMER_SERVICE'];
   return {
     intent: valid.includes(intent) ? intent : 'CUSTOMER_SERVICE',
     aiCategory: category && category !== 'NONE' ? category : null,
@@ -227,6 +228,40 @@ async function queryJobByNumber(scNumber) {
     [scNumber.toUpperCase()]
   );
   return rows.length > 0 ? rows[0] : null;
+}
+
+async function queryConnoteByName(name) {
+  const { rows } = await pool.query(
+    `SELECT * FROM daily_connote WHERE sender ILIKE $1 ORDER BY date_received DESC LIMIT 10`,
+    [`%${name}%`]
+  );
+  return rows;
+}
+
+async function queryConnoteByTracking(tracking) {
+  const { rows } = await pool.query(
+    `SELECT * FROM daily_connote WHERE tracking ILIKE $1 ORDER BY date_received DESC LIMIT 5`,
+    [`%${tracking}%`]
+  );
+  return rows;
+}
+
+async function queryConnoteByReference(reference) {
+  const { rows } = await pool.query(
+    `SELECT * FROM daily_connote WHERE reference ILIKE $1 ORDER BY date_received DESC LIMIT 5`,
+    [`%${reference}%`]
+  );
+  return rows;
+}
+
+async function queryRepairJobsByName(name) {
+  const { rows } = await pool.query(
+    `SELECT job_number, product_model, customer_name, date_opened, job_action, customer_comment, technician_comment
+     FROM repair_jobs WHERE customer_name ILIKE $1
+     ORDER BY date_opened DESC LIMIT 10`,
+    [`%${name}%`]
+  );
+  return rows;
 }
 
 async function queryJobsByCustomerName(customerName, excludeJobNumber) {
@@ -700,7 +735,90 @@ List ALL models from the DATABASE LIST above — every single row, no exceptions
   };
 }
 
-// 7. CUSTOMER_SERVICE: customer email (Hi, my camera has a lag issue...)
+// 7. UNIT_TRACKING: "Where is Cameron Gerhardy's parcel?" / "Has SC tracking 01993... been received?"
+// Checks daily_connote (warehouse receipt) + repair_jobs (booking status)
+async function handleUnitTracking(text) {
+  // Extract search terms with AI
+  const extraction = await callBedrock(
+    `Extract search details from this unit tracking enquiry.
+Reply in this exact format (one line each):
+NAME: <customer or sender name, or NONE>
+TRACKING: <tracking number, or NONE>
+REFERENCE: <RA or repair reference number e.g. RA0010590, or NONE>
+
+Enquiry: "${text.substring(0, 300)}"`,
+    100
+  );
+
+  let customerName = null, trackingNumber = null, reference = null;
+  const nameMatch    = extraction.match(/NAME:\s*(.+)/i);
+  const trackingMatch = extraction.match(/TRACKING:\s*(.+)/i);
+  const refMatch     = extraction.match(/REFERENCE:\s*(.+)/i);
+
+  if (nameMatch    && nameMatch[1].trim().toUpperCase()    !== 'NONE') customerName  = nameMatch[1].trim();
+  if (trackingMatch && trackingMatch[1].trim().toUpperCase() !== 'NONE') trackingNumber = trackingMatch[1].trim();
+  if (refMatch     && refMatch[1].trim().toUpperCase()     !== 'NONE') reference     = refMatch[1].trim();
+
+  console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference);
+
+  // Query connote + repair jobs in parallel
+  const [connoteByName, connoteByTracking, connoteByRef, repairJobs] = await Promise.all([
+    customerName   ? queryConnoteByName(customerName)       : Promise.resolve([]),
+    trackingNumber ? queryConnoteByTracking(trackingNumber) : Promise.resolve([]),
+    reference      ? queryConnoteByReference(reference)     : Promise.resolve([]),
+    customerName   ? queryRepairJobsByName(customerName)    : Promise.resolve([]),
+  ]);
+
+  // Deduplicate connote results by id
+  const seen = new Set();
+  const connoteRows = [...connoteByName, ...connoteByTracking, ...connoteByRef].filter(r => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+
+  const connoteContext = connoteRows.length > 0
+    ? connoteRows.map(r =>
+        `- Date: ${r.date_received ? new Date(r.date_received).toLocaleDateString('en-AU') : 'N/A'} | Courier: ${r.courier || 'N/A'} | Tracking: ${r.tracking || 'N/A'} | Reference: ${r.reference || 'N/A'} | Sender: ${r.sender || 'N/A'} | Received by: ${r.received_by || 'N/A'}`
+      ).join('\n')
+    : 'No connote/delivery records found.';
+
+  const repairContext = repairJobs.length > 0
+    ? repairJobs.map(r =>
+        `- ${r.job_number} | Model: ${r.product_model} | Date: ${r.date_opened ? new Date(r.date_opened).toLocaleDateString('en-AU') : 'N/A'} | Action: ${r.job_action} | Issue: ${r.customer_comment}`
+      ).join('\n')
+    : 'No repair jobs found for this customer.';
+
+  const prompt = `You are a logistics and repair tracking assistant for Uniden Australia warehouse and customer service.
+
+QUESTION: ${text}
+SEARCHED FOR: ${[customerName && `Name: "${customerName}"`, trackingNumber && `Tracking: "${trackingNumber}"`, reference && `Reference: "${reference}"`].filter(Boolean).join(', ')}
+
+CONNOTE / DELIVERY LOG (parcels received at Uniden warehouse):
+${connoteContext}
+
+REPAIR JOB RECORDS (units booked into the repair system):
+${repairContext}
+
+Provide a clear status report:
+1. **Parcel Received?** — Was the unit received at the warehouse? Include date received, courier, tracking number, RA/reference, and who received it.
+2. **Repair Job Status** — Is the unit booked in the repair system? List job number, model, date opened, and action (Repair/Replacement).
+3. **Overall Summary** — One clear sentence for the customer service team.
+
+If nothing is found in either table, say so clearly and suggest double-checking the customer name, tracking number, or reference number.
+Use markdown formatting.`;
+
+  const analysis = await callBedrock(prompt, 600);
+  return {
+    intent: 'UNIT_TRACKING',
+    analysis,
+    matchedModel: null,
+    warrantyMonths: null,
+    detectedProduct: null,
+  };
+}
+
+// 8. CUSTOMER_SERVICE: customer email (Hi, my camera has a lag issue...)
 // Full priority-based email drafting (existing logic)
 async function handleCustomerService(text, matchedModel, warrantyMonths, productType, detectedProduct) {
   const [repairJobs, knowledgeEntries, policies, highPriorityTemplate] = await Promise.all([
@@ -935,6 +1053,9 @@ exports.handler = async (event) => {
         break;
       case 'PRODUCT_LOOKUP':
         result = await handleProductLookup(text, matchedModel, warrantyMonths, detectedProduct, aiCategory);
+        break;
+      case 'UNIT_TRACKING':
+        result = await handleUnitTracking(text);
         break;
       default:
         result = await handleCustomerService(text, matchedModel, warrantyMonths, productType, detectedProduct);

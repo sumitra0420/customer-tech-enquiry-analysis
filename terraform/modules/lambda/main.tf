@@ -117,6 +117,41 @@ locals {
   }
 }
 
+# connote-cleaning: Python Lambda triggered by S3 upload
+# Upload raw connote CSV to s3://bucket/uploads/connote/filename.csv → auto-cleans → db-restore
+resource "aws_lambda_function" "connote_cleaning" {
+  function_name = "${var.project_name}-connote-cleaning"
+  role          = aws_iam_role.lambda.arn
+  handler       = "index.handler"
+  runtime       = "python3.11"
+  timeout       = 120
+  memory_size   = 256
+
+  filename         = data.archive_file.placeholder_python.output_path
+  source_code_hash = data.archive_file.placeholder_python.output_base64sha256
+
+  layers = ["arn:aws:lambda:ap-southeast-2:336392948345:layer:AWSSDKPandas-Python311:18"]
+
+  environment {
+    variables = {
+      S3_BUCKET                = var.s3_bucket_name
+      DB_RESTORE_FUNCTION_NAME = "${var.project_name}-db-restore"
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-connote-cleaning"
+  }
+}
+
+resource "aws_lambda_permission" "s3_invoke_connote_cleaning" {
+  statement_id  = "AllowS3Invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.connote_cleaning.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = var.s3_bucket_arn
+}
+
 # repair-data-cleaning: Python Lambda triggered by S3 upload
 # Upload raw NetSuite CSV to s3://bucket/uploads/netsuite/filename.csv → auto-cleans → db-restore
 resource "aws_lambda_function" "repair_data_cleaning" {
@@ -155,8 +190,8 @@ resource "aws_lambda_permission" "s3_invoke_repair_cleaning" {
   source_arn    = var.s3_bucket_arn
 }
 
-# S3 trigger: file uploaded to uploads/netsuite/*.csv → Lambda fires
-resource "aws_s3_bucket_notification" "netsuite_upload" {
+# S3 triggers — one notification resource covers both upload paths
+resource "aws_s3_bucket_notification" "s3_uploads" {
   bucket = var.s3_bucket_name
 
   lambda_function {
@@ -166,7 +201,17 @@ resource "aws_s3_bucket_notification" "netsuite_upload" {
     filter_suffix       = ".csv"
   }
 
-  depends_on = [aws_lambda_permission.s3_invoke_repair_cleaning]
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.connote_cleaning.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "uploads/connote/"
+    filter_suffix       = ".csv"
+  }
+
+  depends_on = [
+    aws_lambda_permission.s3_invoke_repair_cleaning,
+    aws_lambda_permission.s3_invoke_connote_cleaning,
+  ]
 }
 
 resource "aws_lambda_function" "functions" {
