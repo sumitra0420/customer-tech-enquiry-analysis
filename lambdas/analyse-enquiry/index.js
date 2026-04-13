@@ -821,6 +821,7 @@ Provide a clear status report:
 3. **Overall Summary** — One clear sentence for the customer service team.
 
 If nothing is found in either table, say so clearly and suggest double-checking the customer name, tracking number, or reference number.
+Today's date is ${new Date().toLocaleDateString('en-AU')}. Do not comment on dates being in the future — all dates in the system are valid historical records.
 Use markdown formatting.`;
 
   const analysis = await callBedrock(prompt, 600);
