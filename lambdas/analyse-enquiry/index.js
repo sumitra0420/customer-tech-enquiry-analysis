@@ -768,34 +768,6 @@ List ALL models from the DATABASE LIST above — every single row, no exceptions
 
 // 7. UNIT_TRACKING: "Where is Cameron Gerhardy's parcel?" / "Has SC tracking 01993... been received?"
 // Checks daily_connote (warehouse receipt) + repair_jobs (booking status)
-function extractUnitTrackingTerms(text) {
-  let customerName = null, trackingNumber = null, reference = null;
-
-  // RA/repair reference: RA followed by digits
-  const raMatch = text.match(/\bRA\d+\b/i);
-  if (raMatch) reference = raMatch[0].toUpperCase();
-
-  // Tracking number: long numeric string (8+ digits)
-  const trackingMatch = text.match(/\b\d{8,}\b/);
-  if (trackingMatch) trackingNumber = trackingMatch[0];
-
-  // Customer name: text after common phrases
-  const nameMatch = text.match(
-    /(?:unit of|product of|parcel of|tracking of|where is|status of|find|check|locate)\s+([A-Z][A-Z\s]{2,40}?)(?:\?|$|,|\band\b)/i
-  );
-  if (nameMatch) {
-    customerName = nameMatch[1].trim();
-  } else if (!trackingNumber && !reference) {
-    // Fallback: extract capitalised words as name (exclude common words)
-    const stopWords = new Set(['WHERE', 'IS', 'THE', 'UNIT', 'PRODUCT', 'PARCEL', 'OF', 'FOR', 'HAS', 'BEEN', 'RECEIVED', 'STATUS', 'FIND', 'CHECK']);
-    const words = text.toUpperCase().match(/\b[A-Z]{2,}\b/g) || [];
-    const nameWords = words.filter(w => !stopWords.has(w));
-    if (nameWords.length > 0) customerName = nameWords.join(' ');
-  }
-
-  return { customerName, trackingNumber, reference };
-}
-
 async function handleUnitTracking(text) {
   // Terms already extracted by detectIntent via regex — no extra Bedrock call needed
   const { customerName, trackingNumber, reference } = extractUnitTrackingTerms(text);
