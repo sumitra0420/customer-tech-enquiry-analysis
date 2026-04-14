@@ -100,9 +100,10 @@ data "archive_file" "placeholder_python" {
 }
 locals {
   lambda_functions = {
-    "analyse-enquiry" = "lambdas/analyse-enquiry"  # Bedrock analysis
-    "db-warmup"       = "lambdas/db-warmup"        # Wakes Aurora on user login (Cognito post-auth trigger)
-    "db-restore"      = "lambdas/db-restore"       # One-time DB restore from S3 — remove after use
+    "analyse-enquiry"   = "lambdas/analyse-enquiry"   # Bedrock analysis
+    "db-warmup"         = "lambdas/db-warmup"         # Wakes Aurora
+    "db-restore"        = "lambdas/db-restore"        # DB restore from S3
+    "receipt-extractor" = "lambdas/receipt-extractor" # Receipt photo → Bedrock vision → Aurora
   }
 
   common_env_vars = {
@@ -221,8 +222,8 @@ resource "aws_lambda_function" "functions" {
   role          = aws_iam_role.lambda.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  timeout       = each.key == "analyse-enquiry" ? 60 : each.key == "db-restore" ? 300 : 30
-  memory_size   = each.key == "analyse-enquiry" ? 512 : 256
+  timeout       = each.key == "analyse-enquiry" ? 60 : each.key == "db-restore" ? 300 : each.key == "receipt-extractor" ? 60 : 30
+  memory_size   = each.key == "analyse-enquiry" || each.key == "receipt-extractor" ? 512 : 256
 
   filename         = data.archive_file.placeholder.output_path
   source_code_hash = data.archive_file.placeholder.output_base64sha256

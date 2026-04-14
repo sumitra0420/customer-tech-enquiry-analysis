@@ -327,6 +327,21 @@ async function createSchema() {
       CREATE INDEX IF NOT EXISTS idx_connote_tracking ON daily_connote(tracking);
       CREATE INDEX IF NOT EXISTS idx_connote_reference ON daily_connote(reference);
       CREATE INDEX IF NOT EXISTS idx_connote_date     ON daily_connote(date_received);
+
+      CREATE TABLE IF NOT EXISTS receipts (
+        id             SERIAL PRIMARY KEY,
+        store_name     VARCHAR(200),
+        customer_name  VARCHAR(200),
+        product_name   TEXT,
+        model_number   VARCHAR(100),
+        purchase_date  DATE,
+        total_price    DECIMAL(10,2),
+        receipt_number VARCHAR(100),
+        date_uploaded  TIMESTAMP DEFAULT NOW(),
+        uploaded_by    VARCHAR(200)
+      );
+      CREATE INDEX IF NOT EXISTS idx_receipts_customer ON receipts(LOWER(customer_name));
+      CREATE INDEX IF NOT EXISTS idx_receipts_model    ON receipts(LOWER(model_number));
     `);
     console.log('  ✓ Schema ready');
   } finally {

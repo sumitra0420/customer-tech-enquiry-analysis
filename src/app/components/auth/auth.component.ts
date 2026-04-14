@@ -3,7 +3,6 @@ import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
-import { environments } from '../../../environments/environments';
 
 @Component({
   selector: 'app-auth',
@@ -55,9 +54,6 @@ export class AuthComponent {
 
     this.errorMessage.set('');
     this.isLoading.set(true);
-
-    // Fire and forget — start warming Aurora immediately, don't wait for it
-    fetch(`${environments.apiUrl}/warmup`).catch(() => {});
 
     const result = await this.authService.signIn(this.email(), this.password());
 

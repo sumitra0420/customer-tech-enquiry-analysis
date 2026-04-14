@@ -1,7 +1,7 @@
 import { Component, signal, PLATFORM_ID, inject, OnInit, OnDestroy } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MarkdownModule } from 'ngx-markdown';
 import { AuthService } from '../../services/auth.service';
 import { environments } from '../../../environments/environments';
@@ -9,7 +9,7 @@ import { environments } from '../../../environments/environments';
 @Component({
   selector: 'app-analyse',
   standalone: true,
-  imports: [CommonModule, FormsModule, MarkdownModule],
+  imports: [CommonModule, FormsModule, MarkdownModule, RouterLink],
   templateUrl: './analyse.component.html',
   styleUrl: './analyse.component.css'
 })

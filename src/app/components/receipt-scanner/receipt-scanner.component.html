@@ -1,0 +1,272 @@
+<div class="flex h-screen bg-[#eef1f8] overflow-hidden">
+  <!-- Sidebar -->
+  <aside class="w-52 bg-white flex flex-col flex-shrink-0 border-r border-gray-200">
+    <!-- Logo -->
+    <div class="p-4 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">U</div>
+        <div>
+          <div class="text-gray-900 font-semibold text-sm leading-tight">Uniden</div>
+          <div class="text-gray-400 text-xs leading-tight">Analysis Tool</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-3">
+      <div class="text-gray-400 text-[10px] uppercase tracking-wider mb-2 px-2 font-medium">Main</div>
+
+      <!-- Analysis Tool link -->
+      <a routerLink="/analyse"
+        class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors mb-1">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <span class="text-xs font-medium">Analysis Tool</span>
+      </a>
+
+      <!-- Receipt Scanner (active) -->
+      <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-default border-l-2 border-red-500 bg-red-50">
+        <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0" />
+        </svg>
+        <span class="text-gray-800 font-medium text-xs">Receipt Scanner</span>
+        <span class="ml-auto w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+      </div>
+    </nav>
+
+    <!-- User Profile -->
+    <div class="p-3 border-t border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
+          {{ userName.charAt(0).toUpperCase() }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-gray-800 text-xs font-medium truncate">{{ userName }}</div>
+        </div>
+        <button (click)="onSignOut()"
+          class="text-gray-400 hover:text-gray-700 transition-colors flex-shrink-0 cursor-pointer" title="Sign out">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- Top Bar -->
+    <div class="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+      <h1 class="text-gray-800 font-semibold text-sm">Receipt Scanner</h1>
+    </div>
+
+    <!-- Body -->
+    <div class="flex-1 overflow-auto p-6">
+      <div class="max-w-2xl mx-auto">
+
+        <!-- Step 1: Capture -->
+        @if (step() === 'capture') {
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+            <h2 class="text-gray-800 font-semibold text-sm mb-1">Scan a Receipt</h2>
+            <p class="text-gray-400 text-xs mb-5">Take a photo or upload an image of the purchase receipt.</p>
+
+            @if (cameraError()) {
+              <div class="mb-4 text-red-500 text-xs bg-red-50 rounded-lg px-3 py-2">{{ cameraError() }}</div>
+            }
+
+            <!-- Camera view -->
+            @if (cameraActive()) {
+              <div class="relative mb-4 rounded-xl overflow-hidden bg-black aspect-video">
+                <video #videoEl autoplay playsinline class="w-full h-full object-cover"></video>
+                <canvas #canvasEl class="hidden"></canvas>
+              </div>
+              <div class="flex gap-3">
+                <button (click)="capturePhoto()"
+                  class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1a2035] hover:bg-[#252d4a] text-white text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0" />
+                  </svg>
+                  Capture
+                </button>
+                <button (click)="stopCamera()"
+                  class="px-4 py-3 text-gray-500 hover:text-gray-700 text-sm border border-gray-200 rounded-lg transition-colors cursor-pointer">
+                  Cancel
+                </button>
+              </div>
+            } @else {
+              <!-- Hidden canvas for file compression -->
+              <canvas #canvasEl class="hidden"></canvas>
+              <div class="flex flex-col gap-3">
+                <button (click)="startCamera()"
+                  class="flex items-center justify-center gap-2 px-4 py-3 bg-[#1a2035] hover:bg-[#252d4a] text-white text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0" />
+                  </svg>
+                  Open Camera
+                </button>
+
+                <div class="relative">
+                  <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-gray-100"></div></div>
+                  <div class="relative flex justify-center text-[10px] text-gray-400 uppercase tracking-wider">
+                    <span class="px-2 bg-white">or</span>
+                  </div>
+                </div>
+
+                <label class="flex items-center justify-center gap-2 px-4 py-3 border border-gray-200 hover:border-gray-300 rounded-lg text-gray-600 text-sm cursor-pointer transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  Upload Image
+                  <input #fileInput type="file" accept="image/*" class="hidden" (change)="onFileSelected($event)" />
+                </label>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Step 2: Review extracted data -->
+        @if (step() === 'review') {
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <!-- Header with image preview -->
+            @if (previewUrl()) {
+              <div class="relative">
+                <img [src]="previewUrl()" alt="Receipt" class="w-full max-h-48 object-cover" />
+                <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
+                <div class="absolute bottom-3 left-4 text-white text-xs font-medium">Captured Receipt</div>
+              </div>
+            }
+
+            <div class="p-6">
+              @if (isExtracting()) {
+                <div class="flex flex-col items-center gap-3 py-6">
+                  <div class="animate-spin h-8 w-8 rounded-full border-2 border-gray-200 border-t-indigo-500"></div>
+                  <p class="text-gray-500 text-sm">Extracting receipt data with AI...</p>
+                </div>
+              } @else {
+                <div class="flex items-center justify-between mb-4">
+                  <h2 class="text-gray-800 font-semibold text-sm">Confirm Receipt Details</h2>
+                  <span class="text-[10px] text-gray-400">Edit any incorrect fields</span>
+                </div>
+
+                @if (errorMessage()) {
+                  <div class="mb-4 text-red-500 text-xs bg-red-50 rounded-lg px-3 py-2">{{ errorMessage() }}</div>
+                }
+
+                <div class="grid grid-cols-2 gap-x-4 gap-y-3">
+                  <div>
+                    <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Store Name</label>
+                    <input type="text" [value]="receiptData().store_name || ''"
+                      (input)="updateField('store_name', $any($event.target).value)"
+                      placeholder="e.g. JB Hi-Fi"
+                      class="w-full text-xs text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors" />
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Customer Name</label>
+                    <input type="text" [value]="receiptData().customer_name || ''"
+                      (input)="updateField('customer_name', $any($event.target).value)"
+                      placeholder="e.g. John Smith"
+                      class="w-full text-xs text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors" />
+                  </div>
+
+                  <div class="col-span-2">
+                    <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Product Name</label>
+                    <input type="text" [value]="receiptData().product_name || ''"
+                      (input)="updateField('product_name', $any($event.target).value)"
+                      placeholder="e.g. Uniden Digital Radio"
+                      class="w-full text-xs text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors" />
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Model Number</label>
+                    <input type="text" [value]="receiptData().model_number || ''"
+                      (input)="updateField('model_number', $any($event.target).value)"
+                      placeholder="e.g. XDECT8355"
+                      class="w-full text-xs text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors" />
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Purchase Date</label>
+                    <input type="date" [value]="receiptData().purchase_date || ''"
+                      (input)="updateField('purchase_date', $any($event.target).value)"
+                      class="w-full text-xs text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors" />
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Total Price ($)</label>
+                    <input type="text" [value]="receiptData().total_price || ''"
+                      (input)="updateField('total_price', $any($event.target).value)"
+                      placeholder="e.g. 129.00"
+                      class="w-full text-xs text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors" />
+                  </div>
+
+                  <div>
+                    <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-1">Receipt Number</label>
+                    <input type="text" [value]="receiptData().receipt_number || ''"
+                      (input)="updateField('receipt_number', $any($event.target).value)"
+                      placeholder="e.g. R-00123456"
+                      class="w-full text-xs text-gray-700 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 transition-colors" />
+                  </div>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                  <button (click)="saveReceipt()" [disabled]="isSaving()"
+                    class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1a2035] hover:bg-[#252d4a] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors cursor-pointer">
+                    @if (isSaving()) {
+                      <div class="animate-spin h-4 w-4 rounded-full border-2 border-white/30 border-t-white"></div>
+                      Saving...
+                    } @else {
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Confirm & Save
+                    }
+                  </button>
+                  <button (click)="resetScanner()"
+                    class="px-4 py-3 text-gray-500 hover:text-gray-700 text-sm border border-gray-200 rounded-lg transition-colors cursor-pointer">
+                    Retake
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Step 3: Success -->
+        @if (step() === 'done') {
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-8 flex flex-col items-center gap-4 text-center">
+            <div class="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center">
+              <svg class="w-7 h-7 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-gray-800 font-semibold text-sm">Receipt Saved</h2>
+              <p class="text-gray-400 text-xs mt-1">Record #{{ savedId() }} has been added to the database.</p>
+            </div>
+            <button (click)="resetScanner()"
+              class="mt-2 flex items-center gap-2 px-5 py-2.5 bg-[#1a2035] hover:bg-[#252d4a] text-white text-sm font-medium rounded-lg transition-colors cursor-pointer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0" />
+              </svg>
+              Scan Another
+            </button>
+          </div>
+        }
+
+      </div>
+    </div>
+  </div>
+</div>
