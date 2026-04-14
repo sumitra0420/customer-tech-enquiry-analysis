@@ -188,7 +188,7 @@ async function detectIntent(text) {
 Classify the enquiry into ONE intent, and extract additional data based on intent.
 
 INTENTS:
-- FAULT_LOOKUP: asking about common faults, issues, or problems for a specific product model
+- FAULT_LOOKUP: asking about common faults, issues, problems, or repair counts for a product model or fault type (e.g. battery issues, charging problems, screen failure)
 - KNOWLEDGE_LOOKUP: asking how to use, reset, set up, pair, or troubleshoot a product
 - POLICY_LOOKUP: asking about company policy, warranty rules, repair fees, return process, RA process
 - PRODUCT_LOOKUP: asking about product availability, discontinued status, or what models exist in a category
@@ -200,26 +200,29 @@ PRODUCT CATEGORIES (only for PRODUCT_LOOKUP): CORDED, CORDLESS PHONE, DASHCAM, B
 ENQUIRY: "${text.substring(0, 300)}"
 
 Reply in this exact format (one line):
-INTENT|CATEGORY|NAME|TRACKING|REFERENCE
+INTENT|CATEGORY|NAME|TRACKING|REFERENCE|FAULT_KEYWORD
 
 - CATEGORY: product category for PRODUCT_LOOKUP, else NONE
 - NAME: customer or sender name for UNIT_TRACKING, else NONE
 - TRACKING: tracking number for UNIT_TRACKING, else NONE
 - REFERENCE: RA or repair reference number for UNIT_TRACKING, else NONE
+- FAULT_KEYWORD: for FAULT_LOOKUP, a short keyword to search repair records (e.g. battery, charging, screen, antenna, power), else NONE
 
 Examples:
-PRODUCT_LOOKUP|CORDED|NONE|NONE|NONE
-FAULT_LOOKUP|NONE|NONE|NONE|NONE
-UNIT_TRACKING|NONE|BENJAMIN ROSE|NONE|NONE
-UNIT_TRACKING|NONE|NONE|NONE|RA0010590`;
+PRODUCT_LOOKUP|CORDED|NONE|NONE|NONE|NONE
+FAULT_LOOKUP|NONE|NONE|NONE|NONE|battery
+FAULT_LOOKUP|NONE|NONE|NONE|NONE|charging
+UNIT_TRACKING|NONE|BENJAMIN ROSE|NONE|NONE|NONE
+UNIT_TRACKING|NONE|NONE|NONE|RA0010590|NONE`;
 
-  const result = await callBedrock(prompt, 50);
-  const parts = result.trim().toUpperCase().split('|');
-  const intentRaw  = parts[0]?.replace(/[^A-Z_]/g, '') || 'CUSTOMER_SERVICE';
-  const categoryRaw = parts[1]?.replace(/[^A-Z0-9\- ]/g, '').trim() || null;
-  const nameRaw     = parts[2]?.trim() || null;
-  const trackingRaw = parts[3]?.trim() || null;
-  const refRaw      = parts[4]?.trim() || null;
+  const result = await callBedrock(prompt, 60);
+  const parts = result.trim().split('|');
+  const intentRaw   = parts[0]?.replace(/[^A-Z_]/gi, '').toUpperCase() || 'CUSTOMER_SERVICE';
+  const categoryRaw = parts[1]?.replace(/[^A-Z0-9\- ]/gi, '').trim().toUpperCase() || null;
+  const nameRaw     = parts[2]?.trim().toUpperCase() || null;
+  const trackingRaw = parts[3]?.trim().toUpperCase() || null;
+  const refRaw      = parts[4]?.trim().toUpperCase() || null;
+  const faultRaw    = parts[5]?.trim().toLowerCase() || null;
 
   const valid = ['FAULT_LOOKUP', 'KNOWLEDGE_LOOKUP', 'POLICY_LOOKUP', 'PRODUCT_LOOKUP', 'UNIT_TRACKING', 'CUSTOMER_SERVICE'];
   const intent = valid.includes(intentRaw) ? intentRaw : 'CUSTOMER_SERVICE';
@@ -227,6 +230,7 @@ UNIT_TRACKING|NONE|NONE|NONE|RA0010590`;
   return {
     intent,
     aiCategory: categoryRaw && categoryRaw !== 'NONE' ? categoryRaw : null,
+    faultKeyword: intent === 'FAULT_LOOKUP' && faultRaw && faultRaw !== 'none' ? faultRaw : null,
     unitTrackingTerms: intent === 'UNIT_TRACKING' ? {
       customerName:  nameRaw     && nameRaw     !== 'NONE' ? nameRaw     : null,
       trackingNumber: trackingRaw && trackingRaw !== 'NONE' ? trackingRaw : null,
@@ -242,6 +246,19 @@ async function queryRepairJobsByModel(model, limit = 50) {
     `SELECT job_number, product_model, customer_comment, technician_comment, job_action, date_opened
      FROM repair_jobs WHERE product_model = $1 ORDER BY date_opened DESC LIMIT $2`,
     [model.toUpperCase(), limit]
+  );
+  return rows;
+}
+
+async function queryRepairJobsByKeyword(keyword, limit = 200) {
+  if (!keyword) return [];
+  const pattern = `%${keyword}%`;
+  const { rows } = await pool.query(
+    `SELECT job_number, product_model, customer_comment, technician_comment, job_action, date_opened
+     FROM repair_jobs
+     WHERE customer_comment ILIKE $1 OR technician_comment ILIKE $1
+     ORDER BY date_opened DESC LIMIT $2`,
+    [pattern, limit]
   );
   return rows;
 }
@@ -593,41 +610,53 @@ Use markdown formatting with bold labels for each field.`;
 
 // 5. FAULT_LOOKUP: "What faults does the iGOCAM55 commonly have?"
 // Combines knowledge_base + repair_jobs to identify patterns
-async function handleFaultLookup(text, matchedModel, warrantyMonths, detectedProduct) {
+async function handleFaultLookup(text, matchedModel, warrantyMonths, detectedProduct, faultKeyword) {
+  // If a specific model is matched, search by model; otherwise search by fault keyword across all jobs
+  const keywordSearch = !matchedModel && faultKeyword;
+
   const [knowledgeEntries, repairJobs] = await Promise.all([
     queryKnowledgeBase(matchedModel),
-    queryRepairJobsByModel(matchedModel, 20),
+    keywordSearch
+      ? queryRepairJobsByKeyword(faultKeyword, 200)
+      : queryRepairJobsByModel(matchedModel, 50),
   ]);
 
   const knowledgeContext = knowledgeEntries.length > 0
     ? knowledgeEntries.map(e => `[${e.entry_type}] Q: ${e.question}\nA: ${e.answer}`).join('\n\n')
-    : 'No knowledge base entries for this model.';
+    : 'No knowledge base entries.';
 
   const repairContext = repairJobs.length > 0
-    ? repairJobs.map(j => `Job ${j.job_number}: "${j.customer_comment}" → Tech: "${j.technician_comment}"`).join('\n')
-    : 'No repair history found for this model.';
+    ? repairJobs.map(j =>
+        `Job ${j.job_number} | Model: ${j.product_model} | Customer: "${j.customer_comment}" | Tech: "${j.technician_comment}"`
+      ).join('\n')
+    : 'No matching repair jobs found.';
 
-  const prompt = `You are a technical analyst for Uniden products. Identify common faults and issues.
+  const scopeDesc = keywordSearch
+    ? `FAULT KEYWORD SEARCH: "${faultKeyword}" — searching across ALL models`
+    : `MODEL: ${matchedModel || 'Not specified'}`;
 
-MODEL: ${matchedModel || 'Not specified'}
-PRODUCT CATEGORY: ${detectedProduct || 'Unknown'}
-WARRANTY PERIOD: ${warrantyMonths ? warrantyMonths + ' months' : 'Unknown'}
+  const prompt = `You are a technical analyst for Uniden Australia. Answer based ONLY on the repair data provided below — do not use general knowledge.
 
-KNOWLEDGE BASE ENTRIES:
+${scopeDesc}
+${matchedModel ? `PRODUCT CATEGORY: ${detectedProduct || 'Unknown'}` : ''}
+${matchedModel && warrantyMonths ? `WARRANTY PERIOD: ${warrantyMonths} months` : ''}
+
+KNOWLEDGE BASE:
 ${knowledgeContext}
 
-REPAIR HISTORY (${repairJobs.length} cases):
+REPAIR JOB DATA (${repairJobs.length} jobs found):
 ${repairContext}
 
 QUESTION: ${text}
 
-Analyse the repair history and knowledge base to answer the question. Your response should:
-1. **Common Faults Summary**: Group and name the most frequently reported issues (with job count if possible)
-2. **Technical Patterns**: What the technician notes reveal about root causes
-3. **Knowledge Base Insights**: Any relevant official Q&A for this model
-4. **Recommendations**: What to check first when this product comes in for repair
+Your response MUST include:
+1. **Total Count**: Exact number of repair jobs found matching this fault
+2. **Job Number List**: List every SC job number (e.g. SC12345) found — do not omit any
+3. **Breakdown by Model**: Group job counts by product model
+4. **Common Patterns**: What customers reported and what technicians found
+${!matchedModel ? '' : '5. **Recommendations**: What to check first when this product comes in'}
 
-Use markdown formatting. Reference specific job numbers where relevant.`;
+Use markdown formatting. Base your answer strictly on the data above.`;
 
   const analysis = await callBedrock(prompt);
   return {
@@ -997,7 +1026,7 @@ exports.handler = async (event) => {
     }
 
     // Step 1: Detect intent first (fast, no DB)
-    const { intent, aiCategory, unitTrackingTerms } = await detectIntent(text);
+    const { intent, aiCategory, faultKeyword, unitTrackingTerms } = await detectIntent(text);
     const scNumber = extractScNumber(text);
     console.log('Intent:', intent, '| SC:', scNumber, '| AI Category:', aiCategory);
 
@@ -1065,7 +1094,7 @@ exports.handler = async (event) => {
         result = await handleJobLookup(text, scNumber);
         break;
       case 'FAULT_LOOKUP':
-        result = await handleFaultLookup(text, matchedModel, warrantyMonths, detectedProduct);
+        result = await handleFaultLookup(text, matchedModel, warrantyMonths, detectedProduct, faultKeyword);
         break;
       case 'PRODUCT_LOOKUP':
         result = await handleProductLookup(text, matchedModel, warrantyMonths, detectedProduct, aiCategory);
