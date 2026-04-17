@@ -9,7 +9,7 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   ssl:      { rejectUnauthorized: false },
   max:      1,
-  connectionTimeoutMillis: 10000, // wait up to 10s for Aurora to wake
+  connectionTimeoutMillis: 55000, // wait up to 55s for Aurora cold start
 });
 
 exports.handler = async (event) => {
