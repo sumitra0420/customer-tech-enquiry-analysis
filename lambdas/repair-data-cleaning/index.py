@@ -52,10 +52,11 @@ def handler(event, context):
     print(f'Dropped {before - len(df)} rows (null Job Action or Customer Comment)')
 
     # Drop unwanted columns
-    df = df.drop(columns=['Priority', 'Status', 'Stage', 'Assigned To', 'Date Closed'], errors='ignore')
+    df = df.drop(columns=['Priority', 'Assigned To'], errors='ignore')
 
-    # Parse date
+    # Parse dates
     df['Date Opened'] = pd.to_datetime(df['Date Opened'], dayfirst=True, errors='coerce')
+    df['Date Closed'] = pd.to_datetime(df['Date Closed'], dayfirst=True, errors='coerce')
 
     # Standardise model name
     df['Model Name'] = standardise_model(df['Model Name'])
@@ -79,13 +80,16 @@ def handler(event, context):
         # In case NetSuite exports these as title case
         'Serial Number': 'serial_number',
         'Replacement Serial Number': 'replacement_serial_number',
+        'Date Closed': 'date_closed',
+        'Status': 'status',
+        'Stage': 'stage',
     }
     df = df.rename(columns=rename_map)
 
     # Keep only expected columns (in schema order)
     expected_cols = [
         'job_number', 'product_model', 'customer_comment', 'customer_name',
-        'date_opened', 'job_action', 'technician_comment',
+        'date_opened', 'date_closed', 'status', 'stage', 'job_action', 'technician_comment',
         'serial_number', 'replacement_serial_number',
     ]
     df = df[[col for col in expected_cols if col in df.columns]]

@@ -43,7 +43,7 @@ function categorizeProduct(typeValue) {
   return 'Other';
 }
 
-function mapProductType(csvProductType) {
+function normalizeProductType(csvProductType) {
   const type = String(csvProductType || '').toUpperCase().trim();
   if (type === 'BABY MONITORS') return 'Baby Monitor';
   if (['CORDLESS PHONE', 'CORDLESS PHONE - EXTRA HANDSET', 'CORDED'].includes(type)) return 'Phone';
@@ -558,7 +558,7 @@ async function handleJobLookup(text, scNumber) {
   const productEntry = jobModel ? warrantyData[jobModel] : null;
   const warrantyMonths = productEntry?.months || null;
   const productType = productEntry?.productType || null;
-  const detectedProduct = productType ? (mapProductType(productType) || categorizeProduct(jobModel)) : (jobModel ? categorizeProduct(jobModel) : null);
+  const detectedProduct = productType ? (normalizeProductType(productType) || categorizeProduct(jobModel)) : (jobModel ? categorizeProduct(jobModel) : null);
 
   // Fetch this customer's other repair history
   const otherJobs = job?.customer_name
@@ -570,6 +570,9 @@ async function handleJobLookup(text, scNumber) {
 Model: ${job.product_model}
 Customer: ${job.customer_name}
 Date Opened: ${job.date_opened ? new Date(job.date_opened).toLocaleDateString('en-AU') : 'N/A'}
+Date Closed: ${job.date_closed ? new Date(job.date_closed).toLocaleDateString('en-AU') : 'N/A'}
+Status: ${job.status || 'N/A'}
+Stage: ${job.stage || 'N/A'}
 Job Action: ${job.job_action}
 Customer Reported: ${job.customer_comment}
 Technician Comment: ${job.technician_comment || 'Not yet updated'}
@@ -1050,7 +1053,7 @@ exports.handler = async (event) => {
 
     // Step 4: Derive product category from matched model
     if (matchedModel) {
-      const mapped = mapProductType(productType);
+      const mapped = normalizeProductType(productType);
       if (mapped) detectedProduct = mapped;
       else {
         const cat = categorizeProduct(matchedModel);

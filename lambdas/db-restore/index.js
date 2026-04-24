@@ -114,12 +114,15 @@ async function seedRepairJobs(bucket) {
       const batch = records.slice(i, i + BATCH_SIZE);
       for (const row of batch) {
         await client.query(
-          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, date_opened, job_action, technician_comment, serial_number, replacement_serial_number)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, date_opened, job_action, technician_comment, serial_number, replacement_serial_number, date_closed, status, stage)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            ON CONFLICT (job_number) DO UPDATE SET
              serial_number = EXCLUDED.serial_number,
              replacement_serial_number = EXCLUDED.replacement_serial_number,
-             technician_comment = EXCLUDED.technician_comment`,
+             technician_comment = EXCLUDED.technician_comment,
+             date_closed = EXCLUDED.date_closed,
+             status = EXCLUDED.status,
+             stage = EXCLUDED.stage`,
           [
             row.job_number?.trim(),
             row.product_model?.trim().toUpperCase() || null,
@@ -130,6 +133,9 @@ async function seedRepairJobs(bucket) {
             row.technician_comment?.trim(),
             row.serial_number?.trim() || null,
             row.replacement_serial_number?.trim() || null,
+            row.date_closed || null,
+            row.status?.trim() || null,
+            row.stage?.trim() || null,
           ]
         );
       }
@@ -296,11 +302,17 @@ async function createSchema() {
         job_action                VARCHAR(100),
         technician_comment        TEXT,
         serial_number             VARCHAR(100),
-        replacement_serial_number VARCHAR(100)
+        replacement_serial_number VARCHAR(100),
+        date_closed               TIMESTAMP,
+        status                    VARCHAR(100),
+        stage                     VARCHAR(100)
       );
       CREATE INDEX IF NOT EXISTS idx_repair_jobs_product_model ON repair_jobs(product_model);
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS serial_number VARCHAR(100);
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS replacement_serial_number VARCHAR(100);
+      ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS date_closed TIMESTAMP;
+      ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS status VARCHAR(100);
+      ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS stage VARCHAR(100);
 
       CREATE TABLE IF NOT EXISTS policies (
         policy_id       VARCHAR(20) PRIMARY KEY,

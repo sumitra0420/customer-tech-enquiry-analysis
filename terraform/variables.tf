@@ -46,3 +46,24 @@ variable "invite_only" {
   type        = bool
   default     = false
 }
+
+variable "sharepoint_tenant_id" {
+  description = "Azure AD Tenant ID for SharePoint access"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "sharepoint_client_id" {
+  description = "Azure App Registration Client ID for SharePoint access"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "sharepoint_client_secret" {
+  description = "Azure App Registration Client Secret for SharePoint access"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
