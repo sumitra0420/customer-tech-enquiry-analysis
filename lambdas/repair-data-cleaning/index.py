@@ -96,6 +96,13 @@ def handler(event, context):
 
     print(f'Clean: {len(df)} rows, columns: {list(df.columns)}')
 
+    # Log sample row to verify date_closed, status, stage are populated
+    sample = df[['job_number', 'date_closed', 'status', 'stage']].dropna(subset=['date_closed', 'status', 'stage'], how='all').head(3)
+    if not sample.empty:
+        print(f'Sample rows with date_closed/status/stage:\n{sample.to_string(index=False)}')
+    else:
+        print('WARNING: No rows found with date_closed, status, or stage values — these columns may be missing from the source CSV')
+
     # Write cleaned CSV to S3
     output_key = 'database/repair_data.csv'
     csv_buffer = io.StringIO()
