@@ -1,0 +1,359 @@
+<div class="flex h-screen bg-[#eef1f8] overflow-hidden">
+  <!-- Sidebar -->
+  <aside class="w-52 bg-white flex flex-col flex-shrink-0 border-r border-gray-200">
+    <div class="p-4 border-b border-gray-100">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 bg-black rounded-lg flex items-center justify-center text-white font-bold text-sm flex-shrink-0">U</div>
+        <div>
+          <div class="text-gray-900 font-semibold text-sm leading-tight">Uniden</div>
+          <div class="text-gray-400 text-xs leading-tight">Analysis Tool</div>
+        </div>
+      </div>
+    </div>
+    <nav class="flex-1 px-3 py-3">
+      <div class="text-gray-400 text-[10px] uppercase tracking-wider mb-2 px-2 font-medium">Main</div>
+      <a routerLink="/analyse"
+        class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors mb-1">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <span class="text-xs font-medium">Analysis Tool</span>
+      </a>
+      <div class="flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-default border-l-2 border-red-500 bg-red-50">
+        <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span class="text-gray-800 font-medium text-xs">Manual</span>
+        <span class="ml-auto w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+      </div>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="flex items-center px-6 py-3 bg-white border-b border-gray-200 flex-shrink-0">
+      <h1 class="text-gray-800 font-semibold text-sm">User Manual</h1>
+    </div>
+
+    <div class="flex-1 overflow-auto p-6">
+      <div class="max-w-3xl mx-auto space-y-6">
+
+        <!-- Intro -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <p class="text-gray-500 text-sm leading-relaxed">
+            This tool helps the customer service team quickly look up parcels, repair jobs, and generate responses.
+            Type your question naturally — the AI understands customer names, tracking numbers, RA references, and SC job numbers.
+            The sections below show real examples of questions you can ask and what to expect back.
+          </p>
+        </div>
+
+        <!-- ── SECTION 1: Parcel Tracking & Job Lookup ── -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-blue-50">
+            <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-gray-800 font-semibold text-sm">Parcel Tracking &amp; Job Lookup</h2>
+              <p class="text-gray-500 text-xs mt-0.5">Check whether a parcel arrived and whether a repair job exists for it</p>
+            </div>
+          </div>
+
+          <div class="p-5 space-y-6">
+
+            <!-- By Sender Name -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 border border-blue-100 rounded px-2 py-0.5">By Sender / Customer Name</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-[10px] text-gray-400 uppercase tracking-wider mb-1">You type</p>
+                  <p class="text-gray-700 text-sm font-medium">"Did we receive the parcel from HARVEY NORMAN TOOWOOMBA?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns: received date, courier, tracking, RA reference, received by</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Where is the parcel of ADAM HOOK?"</p>
+                  <p class="text-[10px] text-yellow-600 mt-1.5">⚠️ No delivery found but returns any existing repair jobs for that customer</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Are there any jobs or parcels related to LUKE MCGRICE?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns parcel receipt date + note if no repair job created yet</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Has anything arrived from GOOD GUYS PENRITH?"</p>
+                  <p class="text-[10px] text-blue-600 mt-1.5">ℹ️ No recent delivery but lists historical repair jobs for that store</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Do we have any record for STEVE KINNY?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Parcel received — notes if no RA reference was included</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Are there other jobs related to customer #96925 JB HI-FI LOGANHOLME?"</p>
+                  <p class="text-[10px] text-blue-600 mt-1.5">ℹ️ Returns full repair history for that customer (model, date, job type)</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- By Tracking Number -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-purple-600 bg-purple-50 border border-purple-100 rounded px-2 py-0.5">By Tracking / Connote Number</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Where is the parcel with tracking number HFAA563104?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns: date received, courier, sender, received by, repair job status</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Can you check tracking 01993126509999989199720297568401000830903420217092865266658008260331150432 for me?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Works with full-length Australia Post tracking numbers</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"What is the status of consignment IGCZ50011358?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Identifies sender, reference (RA + PALLET), and warns if not yet booked in</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Where is the parcel with tracking number RL000465446?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns Toll tracking details — flags if waiting too long for processing</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Has the parcel with tracking YFC00000056781234 arrived?" &nbsp;/&nbsp; "Any update on tracking number 6994087900?"</p>
+                  <p class="text-[10px] text-red-500 mt-1.5">❌ No record found — tracking number not in the system (ask customer to confirm courier and recheck)</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- By RA / Reference Number -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-100 rounded px-2 py-0.5">By RA / Reference Number</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"What is the status of RA0010663?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns parcel receipt + sender + repair booking status</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Can you look up reference RA0010688 for me?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Works with slight reference number variations (RA vs RA00010688)</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Is there any record for reference number RA20031?"</p>
+                  <p class="text-[10px] text-red-500 mt-1.5">❌ Not found — reference may be too old or not yet in the system</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mixed / Ambiguous -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-gray-600 bg-gray-100 border border-gray-200 rounded px-2 py-0.5">Mixed — Name + Tracking</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Did we get anything from JB HI-FI MELTON with tracking HFAA568885?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Confirms receipt AND finds linked repair job SC16288 — gives full job detail</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Is there a job or parcel for RA0010653 from JB HI-FI GROUP?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Finds parcel by RA even without a tracking number specified</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Follow-up tip -->
+            <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+              <p class="text-indigo-800 text-xs font-semibold mb-1">💡 Tip — Following up on an SC number</p>
+              <p class="text-indigo-700 text-xs leading-relaxed">
+                If the AI returns an SC number in a lookup result, you can ask a follow-up question directly:<br>
+                <span class="font-medium">"What is the status of SC16288?"</span> — this returns the full repair job detail including model, complaint, technician notes, and customer history.
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── SECTION 2: Repair Status ── -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-green-50">
+            <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-gray-800 font-semibold text-sm">Repair Status</h2>
+              <p class="text-gray-500 text-xs mt-0.5">Look up a specific job by SC number, customer name, or fault type</p>
+            </div>
+          </div>
+
+          <div class="p-5 space-y-6">
+
+            <!-- By SC Job Number -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">By SC Job Number</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"What happened with job SC16076?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns: model, customer, opened date, complaint, technician notes, serial numbers, full repair history for that customer</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"What is the status of SC16288?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns current repair stage, issues found, and any linked parcels</p>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- Tips -->
+            <div class="bg-green-50 rounded-lg p-4 border border-green-100 space-y-2">
+              <p class="text-green-800 text-xs font-semibold">Tips for repair status queries</p>
+              <ul class="space-y-1.5">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 bg-green-400 rounded-full mt-1.5 flex-shrink-0"></span>
+                  <span class="text-green-700 text-xs">Use the SC number for the most precise lookup — the AI returns full technician notes and history.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 bg-green-400 rounded-full mt-1.5 flex-shrink-0"></span>
+                  <span class="text-green-700 text-xs">If you only have a customer name, include the product model to narrow results (e.g. "repair for ADAM HOOK XTRAK50PRO").</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 bg-green-400 rounded-full mt-1.5 flex-shrink-0"></span>
+                  <span class="text-green-700 text-xs">Fault keyword searches (battery, charging, screen, audio) return trend data across all jobs — useful for reporting.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 bg-green-400 rounded-full mt-1.5 flex-shrink-0"></span>
+                  <span class="text-green-700 text-xs">After getting an SC number from a parcel lookup, immediately follow up with "What is the status of SC[number]?" to get full details.</span>
+                </li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── SECTION 3: Technical & Product Enquiries ── -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-orange-50">
+            <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-gray-800 font-semibold text-sm">Technical &amp; Product Enquiries</h2>
+              <p class="text-gray-500 text-xs mt-0.5">Fault analysis, product info, troubleshooting steps, and model status</p>
+            </div>
+          </div>
+
+          <div class="p-5 space-y-6">
+
+            <!-- Fault Analysis from Job Context -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-0.5">Fault Analysis — Paste the job description</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"SC16177 SCREEN TURNING OFF AND ON WHEN SET TO ALWAYS ON / INSTEAD OF THE DELAY FUNCTION WORKING UNIT WOULD POWER DOWN. Model IGOCAM45R"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns: issue category, technical diagnosis, step-by-step repair actions, likely parts needed, and a draft technical report summary</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"What is repair job SC11671?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns: model, customer name, date opened, complaint, technician notes, and full customer repair history with patterns flagged (e.g. duplicate entries, repeat model issues)</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Troubleshooting & Reset -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-0.5">Troubleshooting &amp; Reset Procedures</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"How do I reset the XTRAK80?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns full factory reset and audio-only reset steps, warranty info, and links to related repair history for that model</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Common Faults by Model -->
+            <div>
+              <div class="flex items-center gap-2 mb-3">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-0.5">Common Faults by Model</span>
+              </div>
+              <div class="space-y-2">
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"What are the common faults for DASHVIEW40R?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns grouped fault categories (SD card, power, performance), technical patterns, repair recommendations, and customer education tips</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"Is the iGOCAM55 discontinued?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Confirms discontinued status, lists known faults from repair history, and provides staff guidance on spare parts and upgrade recommendations</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                  <p class="text-gray-700 text-sm font-medium">"What baby monitor models are available?"</p>
+                  <p class="text-[10px] text-green-600 mt-1.5">✅ Returns full list of active and discontinued models with warranty periods</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── SECTION 4: Policy & Process ── -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-purple-50">
+            <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-gray-800 font-semibold text-sm">Policy &amp; Process</h2>
+              <p class="text-gray-500 text-xs mt-0.5">Warranty, repair fees, unrepairable products, and return procedures</p>
+            </div>
+          </div>
+
+          <div class="p-5 space-y-4">
+            <div class="space-y-2">
+              <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                <p class="text-gray-700 text-sm font-medium">"What is the company policy for warranty products for end users or store partners?"</p>
+                <p class="text-[10px] text-green-600 mt-1.5">✅ Returns warranty repair process, replacement process, warranty periods by category, contact details, and turnaround times</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                <p class="text-gray-700 text-sm font-medium">"Which products are unable to be repaired by the technician?"</p>
+                <p class="text-[10px] text-green-600 mt-1.5">✅ Returns the full unrepairable product list grouped by category — baby monitors, surveillance equipment, and assessment-only models including IGOCAM and security systems</p>
+              </div>
+              <div class="bg-gray-50 rounded-lg px-4 py-3 border border-gray-100">
+                <p class="text-gray-700 text-sm font-medium">"If the customer wants to send a product back for repair, what is the process and fee?"</p>
+                <p class="text-[10px] text-green-600 mt-1.5">✅ Returns warranty vs non-warranty repair steps, quote process, $45 handling fee if declined, approved carriers (StarTrack / Toll IPEC), and return email address</p>
+              </div>
+            </div>
+
+            <div class="bg-purple-50 rounded-lg p-4 border border-purple-100">
+              <p class="text-purple-800 text-xs font-semibold mb-1">💡 Tip — Policy questions</p>
+              <p class="text-purple-700 text-xs leading-relaxed">
+                You can ask policy questions in plain language — e.g. <span class="font-medium">"What is the fee if a customer rejects the repair quote?"</span>
+                The AI will pull the relevant policy details and explain them clearly.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

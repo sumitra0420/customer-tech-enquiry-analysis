@@ -10,8 +10,7 @@ secrets = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION'
 SECRET_NAME = os.environ.get('SHAREPOINT_SECRET_NAME', 'tech-enquiry/sharepoint-credentials')
 S3_BUCKET = os.environ['S3_BUCKET']
 
-SHAREPOINT_HOST = 'uniden.sharepoint.com'
-SITE_PATH = '/sites/UAUS_CUSTOMERSERVICE-WAREHOUSE'
+DRIVE_ID = 'b!jp8NK0_pBEavZSoam906ObYCGL02fUFPi5K9ZCGrRUfBgBP6o2UkT4k1bk4h0uvZ'
 FILE_NAME = 'DAILY CONNOTE.xlsx'
 S3_KEY = 'raw/daily_connote.xlsx'
 
@@ -41,10 +40,7 @@ def get_access_token(tenant_id, client_id, client_secret):
 
 def download_file(token):
     encoded_file = urllib.parse.quote(FILE_NAME)
-    url = (
-        f'https://graph.microsoft.com/v1.0/sites/{SHAREPOINT_HOST}:{SITE_PATH}'
-        f':/drives/root/root:/{encoded_file}:/content'
-    )
+    url = f'https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/root:/{encoded_file}:/content'
 
     req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
     with urllib.request.urlopen(req) as response:
@@ -55,7 +51,7 @@ def download_file(token):
 
 
 def handler(event, context):
-    print(f'Downloading "{FILE_NAME}" from SharePoint site: {SITE_PATH}')
+    print(f'Downloading "{FILE_NAME}" from SharePoint drive: {DRIVE_ID}')
 
     tenant_id, client_id, client_secret = get_credentials()
     token = get_access_token(tenant_id, client_id, client_secret)

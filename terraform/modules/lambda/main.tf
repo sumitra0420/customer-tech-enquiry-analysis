@@ -74,6 +74,13 @@ resource "aws_iam_role_policy" "lambda" {
           "ec2:UnassignPrivateIpAddresses"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = "arn:aws:secretsmanager:*:*:secret:${var.project_name}/sharepoint-credentials*"
       }
     ]
   })
@@ -213,6 +220,30 @@ resource "aws_s3_bucket_notification" "s3_uploads" {
     aws_lambda_permission.s3_invoke_repair_cleaning,
     aws_lambda_permission.s3_invoke_connote_cleaning,
   ]
+}
+
+# sharepoint-sync: Python Lambda that downloads DAILY CONNOTE.xlsx from SharePoint to S3
+resource "aws_lambda_function" "sharepoint_sync" {
+  function_name = "${var.project_name}-sharepoint-sync"
+  role          = aws_iam_role.lambda.arn
+  handler       = "index.handler"
+  runtime       = "python3.11"
+  timeout       = 120
+  memory_size   = 256
+
+  filename         = data.archive_file.placeholder_python.output_path
+  source_code_hash = data.archive_file.placeholder_python.output_base64sha256
+
+  environment {
+    variables = {
+      S3_BUCKET            = var.s3_bucket_name
+      SHAREPOINT_SECRET_NAME = "${var.project_name}/sharepoint-credentials"
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-sharepoint-sync"
+  }
 }
 
 resource "aws_lambda_function" "functions" {
