@@ -847,13 +847,18 @@ ${connoteContext}
 REPAIR JOB RECORDS (units booked into the repair system):
 ${repairContext}
 
+CRITICAL RULES:
+- If a record exists in the CONNOTE / DELIVERY LOG, the parcel WAS received at the Uniden warehouse on that date. Never say "not yet received" or invent an "Expected delivery" date when a connote record exists.
+- "Received by: N/A" only means the person's name was not recorded — the parcel was still received.
+- Only say a parcel was not received if the connote section explicitly says "No connote/delivery records found."
+
 Provide a clear status report:
-1. **Parcel Received?** — Was the unit received at the warehouse? Include date received, courier, tracking number, RA/reference, and who received it.
+1. **Parcel Received?** — Yes/No. If yes, include date received, courier, tracking number, and RA/reference. Only mention received_by if it is not N/A.
 2. **Repair Job Status** — Is the unit booked in the repair system? List job number, model, date opened, and action (Repair/Replacement).
 3. **Overall Summary** — One clear sentence for the customer service team.
 
 If nothing is found in either table, say so clearly and suggest double-checking the customer name, tracking number, or reference number.
-Today's date is ${new Date().toLocaleDateString('en-AU')}. Do not comment on dates being in the future — all dates in the system are valid historical records.
+Today's date is ${new Date().toLocaleDateString('en-AU')}. All dates in the system are valid historical records.
 Use markdown formatting.`;
 
   const analysis = await callBedrock(prompt, 600);

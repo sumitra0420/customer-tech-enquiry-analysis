@@ -7,4 +7,12 @@ import { RouterLink } from '@angular/router';
   imports: [RouterLink],
   templateUrl: './manual.component.html',
 })
-export class ManualComponent {}
+export class ManualComponent {
+  copiedText: string | null = null;
+
+  copy(text: string) {
+    this.copiedText = text;
+    setTimeout(() => { this.copiedText = null; }, 600);
+    navigator.clipboard?.writeText(text);
+  }
+}
