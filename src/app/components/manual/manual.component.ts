@@ -9,6 +9,11 @@ import { RouterLink } from '@angular/router';
 })
 export class ManualComponent {
   copiedText: string | null = null;
+  openSections = new Set<number>();
+
+  toggleSection(i: number) {
+    this.openSections.has(i) ? this.openSections.delete(i) : this.openSections.add(i);
+  }
 
   copy(text: string) {
     this.copiedText = text;

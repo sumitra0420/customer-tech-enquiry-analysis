@@ -365,20 +365,31 @@ async function detectModelFromDB(text) {
   return rows.length > 0 ? rows[0].model : null;
 }
 
-// ─── Shared Bedrock call ───────────────────────────────────────────────────────
-async function callBedrock(prompt, maxTokens = 2000) {
-  const response = await bedrockClient.send(new InvokeModelCommand({
-    modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-    contentType: 'application/json',
-    accept: 'application/json',
-    body: JSON.stringify({
-      anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: maxTokens,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  }));
-  const body = JSON.parse(new TextDecoder().decode(response.body));
-  return body.content[0].text;
+// ─── Shared Bedrock call (with retry on throttling) ───────────────────────────
+async function callBedrock(prompt, maxTokens = 2000, attempt = 1) {
+  try {
+    const response = await bedrockClient.send(new InvokeModelCommand({
+      modelId: process.env.BEDROCK_MODEL_ID || 'anthropic.claude-3-5-sonnet-20241022-v2:0',
+      contentType: 'application/json',
+      accept: 'application/json',
+      body: JSON.stringify({
+        anthropic_version: 'bedrock-2023-05-31',
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    }));
+    const body = JSON.parse(new TextDecoder().decode(response.body));
+    return body.content[0].text;
+  } catch (err) {
+    const isThrottle = err.name === 'ThrottlingException' || err.$metadata?.httpStatusCode === 429;
+    if (isThrottle && attempt < 4) {
+      const delay = attempt * 3000; // 3s, 6s, 9s
+      console.log(`Bedrock throttled — retry ${attempt}/3 in ${delay}ms`);
+      await new Promise(r => setTimeout(r, delay));
+      return callBedrock(prompt, maxTokens, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 // AI fallback for model extraction when rule-based fails
@@ -830,10 +841,23 @@ async function handleUnitTracking(text, unitTrackingTerms = {}) {
       ).join('\n')
     : 'No connote/delivery records found.';
 
+  // Find the earliest parcel receipt date to use as the cut-off for "related" jobs
+  const parcelDate = connoteRows.length > 0
+    ? connoteRows.reduce((earliest, r) => {
+        if (!r.date_received) return earliest;
+        const d = new Date(r.date_received);
+        return !earliest || d < earliest ? d : earliest;
+      }, null)
+    : null;
+
   const repairContext = repairJobs.length > 0
-    ? repairJobs.map(r =>
-        `- ${r.job_number} | Model: ${r.product_model} | Date: ${r.date_opened ? new Date(r.date_opened).toLocaleDateString('en-AU') : 'N/A'} | Action: ${r.job_action} | Issue: ${r.customer_comment}`
-      ).join('\n')
+    ? repairJobs.map(r => {
+        const jobDate = r.date_opened ? new Date(r.date_opened) : null;
+        const tag = parcelDate && jobDate
+          ? (jobDate >= parcelDate ? '[LIKELY RELATED TO THIS PARCEL]' : '[OLD JOB — opened before parcel arrived]')
+          : '';
+        return `- ${r.job_number} ${tag} | Model: ${r.product_model} | Date: ${jobDate ? jobDate.toLocaleDateString('en-AU') : 'N/A'} | Action: ${r.job_action} | Issue: ${r.customer_comment}`;
+      }).join('\n')
     : 'No repair jobs found for this customer.';
 
   const prompt = `You are a logistics and repair tracking assistant for Uniden Australia warehouse and customer service.
@@ -854,7 +878,7 @@ CRITICAL RULES:
 
 Provide a clear status report:
 1. **Parcel Received?** — Yes/No. If yes, include date received, courier, tracking number, and RA/reference. Only mention received_by if it is not N/A.
-2. **Repair Job Status** — Is the unit booked in the repair system? List job number, model, date opened, and action (Repair/Replacement).
+2. **Repair Job Status** — Focus on jobs tagged [LIKELY RELATED TO THIS PARCEL] (opened on or after the parcel date). List job number, model, date opened, action, and issue. Jobs tagged [OLD JOB] are pre-existing and should be listed briefly at the end under "Previous jobs" — do not treat them as linked to this parcel.
 3. **Overall Summary** — One clear sentence for the customer service team.
 
 If nothing is found in either table, say so clearly and suggest double-checking the customer name, tracking number, or reference number.
