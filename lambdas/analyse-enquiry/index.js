@@ -382,9 +382,9 @@ async function callBedrock(prompt, maxTokens = 2000, attempt = 1) {
     return body.content[0].text;
   } catch (err) {
     const isThrottle = err.name === 'ThrottlingException' || err.$metadata?.httpStatusCode === 429;
-    if (isThrottle && attempt < 4) {
-      const delay = attempt * 3000; // 3s, 6s, 9s
-      console.log(`Bedrock throttled — retry ${attempt}/3 in ${delay}ms`);
+    if (isThrottle && attempt < 3) {
+      const delay = attempt * 1000; // 1s, 2s
+      console.log(`Bedrock throttled — retry ${attempt}/2 in ${delay}ms`);
       await new Promise(r => setTimeout(r, delay));
       return callBedrock(prompt, maxTokens, attempt + 1);
     }

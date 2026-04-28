@@ -8,6 +8,8 @@ import {
   fetchAuthSession,
   confirmSignUp,
   confirmSignIn,
+  resetPassword,
+  confirmResetPassword,
   SignUpInput,
   SignInInput,
   ConfirmSignUpInput,
@@ -161,6 +163,24 @@ export class AuthService {
       return { success: false, message: 'Could not complete sign in.' };
     } catch (error: any) {
       return { success: false, message: error.message || 'Failed to set new password' };
+    }
+  }
+
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await resetPassword({ username: email });
+      return { success: true, message: 'Verification code sent to your email.' };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Failed to send reset code' };
+    }
+  }
+
+  async confirmForgotPassword(email: string, code: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await confirmResetPassword({ username: email, confirmationCode: code, newPassword });
+      return { success: true, message: 'Password reset successfully. You can now sign in.' };
+    } catch (error: any) {
+      return { success: false, message: error.message || 'Failed to reset password' };
     }
   }
 

@@ -18,6 +18,11 @@ export class AuthComponent {
   needsNewPassword = signal(false);
   newPassword = signal('');
   confirmNewPassword = signal('');
+  showForgotPassword = signal(false);
+  forgotPasswordCodeSent = signal(false);
+  resetCode = signal('');
+  resetNewPassword = signal('');
+  resetConfirmPassword = signal('');
 
   // Form fields
   name = signal('');
@@ -163,5 +168,58 @@ export class AuthComponent {
     this.successMessage.set('');
     this.needsVerification.set(false);
     this.showPasswordStep.set(false);
+  }
+
+  openForgotPassword() {
+    this.showForgotPassword.set(true);
+    this.forgotPasswordCodeSent.set(false);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+    this.resetCode.set('');
+    this.resetNewPassword.set('');
+    this.resetConfirmPassword.set('');
+  }
+
+  closeForgotPassword() {
+    this.showForgotPassword.set(false);
+    this.forgotPasswordCodeSent.set(false);
+    this.errorMessage.set('');
+  }
+
+  async onSendResetCode() {
+    if (!this.email().trim()) {
+      this.errorMessage.set('Please enter your email address.');
+      return;
+    }
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    const result = await this.authService.forgotPassword(this.email());
+    this.isLoading.set(false);
+    if (result.success) {
+      this.forgotPasswordCodeSent.set(true);
+      this.successMessage.set(result.message);
+    } else {
+      this.errorMessage.set(result.message);
+    }
+  }
+
+  async onConfirmReset() {
+    if (this.resetNewPassword() !== this.resetConfirmPassword()) {
+      this.errorMessage.set('Passwords do not match');
+      return;
+    }
+    this.isLoading.set(true);
+    this.errorMessage.set('');
+    const result = await this.authService.confirmForgotPassword(
+      this.email(), this.resetCode(), this.resetNewPassword()
+    );
+    this.isLoading.set(false);
+    if (result.success) {
+      this.successMessage.set(result.message);
+      this.showForgotPassword.set(false);
+      this.forgotPasswordCodeSent.set(false);
+    } else {
+      this.errorMessage.set(result.message);
+    }
   }
 }
