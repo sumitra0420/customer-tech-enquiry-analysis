@@ -455,16 +455,14 @@ exports.handler = async (event) => {
   const bucket = event.bucket || process.env.S3_BUCKET;
   console.log(`Seeding from s3://${bucket}/database/...`);
 
-  try {
-    await createSchema();
-    await seedCustomers(bucket);
-    await seedProducts(bucket);
-    await seedKnowledgeBase(bucket);
-    await seedRepairJobs(bucket);
-    await seedPolicies(bucket);
-    await seedDiscontinuedProducts(bucket);
-    await seedConnote(bucket);
-    console.log('Done! All tables seeded.');
-    return { statusCode: 200, body: 'Seeded successfully' };
-  }
+  await createSchema();
+  await seedCustomers(bucket);
+  await seedProducts(bucket);
+  await seedKnowledgeBase(bucket);
+  await seedRepairJobs(bucket);
+  await seedPolicies(bucket);
+  await seedDiscontinuedProducts(bucket);
+  await seedConnote(bucket);
+  console.log('Done! All tables seeded.');
+  return { statusCode: 200, body: 'Seeded successfully' };
 };
