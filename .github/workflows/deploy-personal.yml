@@ -81,6 +81,10 @@ jobs:
           cd lambdas/analyse-enquiry && zip -r function.zip index.js node_modules/
           cd ../db-warmup && zip -r function.zip index.js node_modules/
           cd ../db-restore && zip -r function.zip index.js node_modules/
+          cd ../connote-cleaning && zip -r function.zip index.py
+          cd ../repair-data-cleaning && zip -r function.zip index.py
+          cd ../customer-cleaning && zip -r function.zip index.py
+          cd ../sharepoint-sync && zip -r function.zip index.py
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -106,3 +110,11 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ secrets.PERSONAL_DB_RESTORE_FUNCTION_NAME }} \
             --zip-file fileb://lambdas/db-restore/function.zip
+
+      - name: Deploy Python Lambdas
+        run: |
+          for fn in connote-cleaning repair-data-cleaning customer-cleaning sharepoint-sync; do
+            aws lambda update-function-code \
+              --function-name ${{ secrets.PERSONAL_PROJECT_NAME }}-$fn \
+              --zip-file fileb://lambdas/$fn/function.zip
+          done

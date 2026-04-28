@@ -216,10 +216,51 @@ resource "aws_s3_bucket_notification" "s3_uploads" {
     filter_suffix       = ".csv"
   }
 
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.customer_cleaning.arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "uploads/customers/"
+    filter_suffix       = ".csv"
+  }
+
   depends_on = [
     aws_lambda_permission.s3_invoke_repair_cleaning,
     aws_lambda_permission.s3_invoke_connote_cleaning,
+    aws_lambda_permission.s3_invoke_customer_cleaning,
   ]
+}
+
+# customer-cleaning: Python Lambda triggered by S3 upload
+# Upload raw NetSuite customers CSV to s3://bucket/uploads/customers/filename.csv → cleans → db-restore
+resource "aws_lambda_function" "customer_cleaning" {
+  function_name = "${var.project_name}-customer-cleaning"
+  role          = aws_iam_role.lambda.arn
+  handler       = "index.handler"
+  runtime       = "python3.11"
+  timeout       = 120
+  memory_size   = 256
+
+  filename         = data.archive_file.placeholder_python.output_path
+  source_code_hash = data.archive_file.placeholder_python.output_base64sha256
+
+  environment {
+    variables = {
+      S3_BUCKET                = var.s3_bucket_name
+      DB_RESTORE_FUNCTION_NAME = "${var.project_name}-db-restore"
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-customer-cleaning"
+  }
+}
+
+resource "aws_lambda_permission" "s3_invoke_customer_cleaning" {
+  statement_id  = "AllowS3Invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.customer_cleaning.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = var.s3_bucket_arn
 }
 
 # sharepoint-sync: Python Lambda that downloads DAILY CONNOTE.xlsx from SharePoint to S3

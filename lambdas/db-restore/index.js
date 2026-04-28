@@ -102,6 +102,46 @@ async function seedKnowledgeBase(bucket) {
   }
 }
 
+async function seedCustomers(bucket) {
+  console.log('Seeding customers...');
+  let records;
+  try {
+    records = await readCsvFromS3(bucket, 'database/customers.csv');
+  } catch (err) {
+    console.log('  No customers.csv found, skipping.');
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (const row of records) {
+      const customerId = parseInt(row.customer_id);
+      const customerName = row.customer_name?.trim();
+      if (!customerId || !customerName) continue;
+      await client.query(
+        `INSERT INTO customers (customer_id, customer_name)
+         VALUES ($1, $2)
+         ON CONFLICT (customer_id) DO UPDATE SET customer_name = EXCLUDED.customer_name`,
+        [customerId, customerName]
+      );
+    }
+    await client.query('COMMIT');
+    console.log(`  ✓ ${records.length} customers`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+function parseCustomerField(raw) {
+  if (!raw) return { customerId: null, customerName: null };
+  const match = raw.trim().match(/^(\d+)\s+#?(.+)$/);
+  if (!match) return { customerId: null, customerName: raw.trim() };
+  return { customerId: parseInt(match[1]), customerName: match[2].trim() };
+}
+
 async function seedRepairJobs(bucket) {
   console.log('Seeding repair_jobs...');
   const records = await readCsvFromS3(bucket, 'database/repair_data.csv');
@@ -113,21 +153,25 @@ async function seedRepairJobs(bucket) {
     for (let i = 0; i < records.length; i += BATCH_SIZE) {
       const batch = records.slice(i, i + BATCH_SIZE);
       for (const row of batch) {
+        const { customerId, customerName } = parseCustomerField(row.customer_name);
         await client.query(
-          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, date_opened, job_action, technician_comment, serial_number, replacement_serial_number, date_closed, status, stage)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, customer_id, date_opened, job_action, technician_comment, serial_number, replacement_serial_number, date_closed, status, stage)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            ON CONFLICT (job_number) DO UPDATE SET
              serial_number = EXCLUDED.serial_number,
              replacement_serial_number = EXCLUDED.replacement_serial_number,
              technician_comment = EXCLUDED.technician_comment,
              date_closed = EXCLUDED.date_closed,
              status = EXCLUDED.status,
-             stage = EXCLUDED.stage`,
+             stage = EXCLUDED.stage,
+             customer_id = EXCLUDED.customer_id,
+             customer_name = EXCLUDED.customer_name`,
           [
             row.job_number?.trim(),
             row.product_model?.trim().toUpperCase() || null,
             row.customer_comment?.trim(),
-            row.customer_name?.trim(),
+            customerName || null,
+            customerId || null,
             row.date_opened || null,
             row.job_action?.trim(),
             row.technician_comment?.trim(),
@@ -201,8 +245,8 @@ async function seedConnote(bucket) {
     await client.query('TRUNCATE TABLE daily_connote RESTART IDENTITY');
     for (const row of records) {
       await client.query(
-        `INSERT INTO daily_connote (date_received, courier, tracking, reference, sender, received_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+        `INSERT INTO daily_connote (date_received, courier, tracking, reference, sender, received_by, customer_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           row.date_received || null,
           row.courier?.trim() || null,
@@ -210,6 +254,7 @@ async function seedConnote(bucket) {
           row.reference?.trim() || null,
           row.sender?.trim() || null,
           row.received_by?.trim() || null,
+          row.customer_id ? parseInt(row.customer_id) : null,
         ]
       );
     }
@@ -273,6 +318,14 @@ async function createSchema() {
   const client = await pool.connect();
   try {
     await client.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        customer_id   INTEGER PRIMARY KEY,
+        customer_name TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(LOWER(customer_name));
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS products (
         model          VARCHAR(100) PRIMARY KEY,
         product_name   TEXT,
@@ -313,6 +366,8 @@ async function createSchema() {
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS date_closed TIMESTAMP;
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS status VARCHAR(100);
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS stage VARCHAR(100);
+      ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS customer_id INTEGER;
+      CREATE INDEX IF NOT EXISTS idx_repair_jobs_customer ON repair_jobs(customer_id);
 
       CREATE TABLE IF NOT EXISTS policies (
         policy_id       VARCHAR(20) PRIMARY KEY,
@@ -339,6 +394,8 @@ async function createSchema() {
       CREATE INDEX IF NOT EXISTS idx_connote_tracking ON daily_connote(tracking);
       CREATE INDEX IF NOT EXISTS idx_connote_reference ON daily_connote(reference);
       CREATE INDEX IF NOT EXISTS idx_connote_date     ON daily_connote(date_received);
+      ALTER TABLE daily_connote ADD COLUMN IF NOT EXISTS customer_id INTEGER;
+      CREATE INDEX IF NOT EXISTS idx_connote_customer ON daily_connote(customer_id);
 
       CREATE TABLE IF NOT EXISTS receipts (
         id             SERIAL PRIMARY KEY,
@@ -367,6 +424,7 @@ exports.handler = async (event) => {
 
   try {
     await createSchema();
+    await seedCustomers(bucket);
     await seedProducts(bucket);
     await seedKnowledgeBase(bucket);
     await seedRepairJobs(bucket);
