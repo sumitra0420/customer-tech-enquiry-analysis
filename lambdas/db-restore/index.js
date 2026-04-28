@@ -348,10 +348,10 @@ async function createSchema() {
         customer_name      TEXT NOT NULL,
         customer_name_norm TEXT
       );
-      CREATE INDEX IF NOT EXISTS idx_customers_name      ON customers(LOWER(customer_name));
-      CREATE INDEX IF NOT EXISTS idx_customers_name_norm ON customers(customer_name_norm);
-      ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_name_norm TEXT;
+      CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(LOWER(customer_name));
     `);
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_name_norm TEXT`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_customers_name_norm ON customers(customer_name_norm)`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
@@ -395,8 +395,9 @@ async function createSchema() {
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS status VARCHAR(100);
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS stage VARCHAR(100);
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS customer_id INTEGER;
-      CREATE INDEX IF NOT EXISTS idx_repair_jobs_customer ON repair_jobs(customer_id);
-
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_repair_jobs_customer ON repair_jobs(customer_id)`);
+    await client.query(`
       CREATE TABLE IF NOT EXISTS policies (
         policy_id       VARCHAR(20) PRIMARY KEY,
         category        VARCHAR(100),
@@ -422,10 +423,12 @@ async function createSchema() {
       CREATE INDEX IF NOT EXISTS idx_connote_tracking ON daily_connote(tracking);
       CREATE INDEX IF NOT EXISTS idx_connote_reference ON daily_connote(reference);
       CREATE INDEX IF NOT EXISTS idx_connote_date     ON daily_connote(date_received);
-      ALTER TABLE daily_connote ADD COLUMN IF NOT EXISTS customer_id INTEGER;
-      ALTER TABLE daily_connote ADD COLUMN IF NOT EXISTS sender_norm TEXT;
-      CREATE INDEX IF NOT EXISTS idx_connote_customer    ON daily_connote(customer_id);
-      CREATE INDEX IF NOT EXISTS idx_connote_sender_norm ON daily_connote(sender_norm);
+    `);
+    await client.query(`ALTER TABLE daily_connote ADD COLUMN IF NOT EXISTS customer_id INTEGER`);
+    await client.query(`ALTER TABLE daily_connote ADD COLUMN IF NOT EXISTS sender_norm TEXT`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_connote_customer    ON daily_connote(customer_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_connote_sender_norm ON daily_connote(sender_norm)`);
+    await client.query(`
 
       CREATE TABLE IF NOT EXISTS receipts (
         id             SERIAL PRIMARY KEY,
