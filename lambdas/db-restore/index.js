@@ -124,7 +124,7 @@ async function seedCustomers(bucket) {
          ON CONFLICT (customer_id) DO UPDATE SET
            customer_name      = EXCLUDED.customer_name,
            customer_name_norm = EXCLUDED.customer_name_norm`,
-        [customerId, customerName, row.customer_name_norm?.trim() || null]
+        [customerId, customerName, row.customer_name_norm?.trim() || normalise(customerName)]
       );
     }
     await client.query('COMMIT');
@@ -135,6 +135,10 @@ async function seedCustomers(bucket) {
   } finally {
     client.release();
   }
+}
+
+function normalise(text) {
+  return text ? text.toLowerCase().replace(/[^a-z0-9]/g, '') : null;
 }
 
 function parseCustomerField(raw) {
@@ -255,7 +259,7 @@ async function seedConnote(bucket) {
           row.tracking?.trim() || null,
           row.reference?.trim() || null,
           row.sender?.trim() || null,
-          row.sender_norm?.trim() || null,
+          row.sender_norm?.trim() || normalise(row.sender),
           row.received_by?.trim() || null,
         ]
       );
