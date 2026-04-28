@@ -1,8 +1,13 @@
 import json
 import io
 import os
+import re
 import csv
 import boto3
+
+
+def normalise(text):
+    return re.sub(r'[^a-z0-9]', '', str(text).lower())
 
 s3 = boto3.client('s3')
 lambda_client = boto3.client('lambda', region_name=os.environ.get('AWS_REGION', 'ap-southeast-2'))
@@ -39,12 +44,12 @@ def handler(event, context):
             skipped += 1
             continue
 
-        clean_rows.append({'customer_id': int(cid), 'customer_name': name})
+        clean_rows.append({'customer_id': int(cid), 'customer_name': name, 'customer_name_norm': normalise(name)})
 
     print(f'Clean: {len(clean_rows)} rows, skipped: {skipped}')
 
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=['customer_id', 'customer_name'])
+    writer = csv.DictWriter(out, fieldnames=['customer_id', 'customer_name', 'customer_name_norm'])
     writer.writeheader()
     writer.writerows(clean_rows)
 

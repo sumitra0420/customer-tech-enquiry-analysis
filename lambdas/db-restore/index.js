@@ -119,10 +119,12 @@ async function seedCustomers(bucket) {
       const customerName = row.customer_name?.trim();
       if (!customerId || !customerName) continue;
       await client.query(
-        `INSERT INTO customers (customer_id, customer_name)
-         VALUES ($1, $2)
-         ON CONFLICT (customer_id) DO UPDATE SET customer_name = EXCLUDED.customer_name`,
-        [customerId, customerName]
+        `INSERT INTO customers (customer_id, customer_name, customer_name_norm)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (customer_id) DO UPDATE SET
+           customer_name      = EXCLUDED.customer_name,
+           customer_name_norm = EXCLUDED.customer_name_norm`,
+        [customerId, customerName, row.customer_name_norm?.trim() || null]
       );
     }
     await client.query('COMMIT');
@@ -245,7 +247,7 @@ async function seedConnote(bucket) {
     await client.query('TRUNCATE TABLE daily_connote RESTART IDENTITY');
     for (const row of records) {
       await client.query(
-        `INSERT INTO daily_connote (date_received, courier, tracking, reference, sender, received_by, customer_id)
+        `INSERT INTO daily_connote (date_received, courier, tracking, reference, sender, sender_norm, received_by)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           row.date_received || null,
@@ -253,13 +255,32 @@ async function seedConnote(bucket) {
           row.tracking?.trim() || null,
           row.reference?.trim() || null,
           row.sender?.trim() || null,
+          row.sender_norm?.trim() || null,
           row.received_by?.trim() || null,
-          row.customer_id ? parseInt(row.customer_id) : null,
         ]
       );
     }
+
+    // Match sender_norm to customer_name_norm — pick longest customer name that is a prefix of sender_norm
+    await client.query(`
+      UPDATE daily_connote dc
+      SET customer_id = best.customer_id
+      FROM (
+        SELECT DISTINCT ON (dc.id)
+          dc.id,
+          c.customer_id,
+          length(c.customer_name_norm) AS match_len
+        FROM daily_connote dc
+        JOIN customers c ON dc.sender_norm LIKE c.customer_name_norm || '%'
+        WHERE length(c.customer_name_norm) >= 5
+        ORDER BY dc.id, match_len DESC
+      ) best
+      WHERE dc.id = best.id
+    `);
+
+    const matched = await client.query(`SELECT COUNT(*) FROM daily_connote WHERE customer_id IS NOT NULL`);
+    console.log(`  ✓ ${records.length} connote entries, ${matched.rows[0].count} matched to a customer`);
     await client.query('COMMIT');
-    console.log(`  ✓ ${records.length} connote entries`);
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -319,10 +340,13 @@ async function createSchema() {
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS customers (
-        customer_id   INTEGER PRIMARY KEY,
-        customer_name TEXT NOT NULL
+        customer_id        INTEGER PRIMARY KEY,
+        customer_name      TEXT NOT NULL,
+        customer_name_norm TEXT
       );
-      CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(LOWER(customer_name));
+      CREATE INDEX IF NOT EXISTS idx_customers_name      ON customers(LOWER(customer_name));
+      CREATE INDEX IF NOT EXISTS idx_customers_name_norm ON customers(customer_name_norm);
+      ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_name_norm TEXT;
     `);
 
     await client.query(`
@@ -395,7 +419,9 @@ async function createSchema() {
       CREATE INDEX IF NOT EXISTS idx_connote_reference ON daily_connote(reference);
       CREATE INDEX IF NOT EXISTS idx_connote_date     ON daily_connote(date_received);
       ALTER TABLE daily_connote ADD COLUMN IF NOT EXISTS customer_id INTEGER;
-      CREATE INDEX IF NOT EXISTS idx_connote_customer ON daily_connote(customer_id);
+      ALTER TABLE daily_connote ADD COLUMN IF NOT EXISTS sender_norm TEXT;
+      CREATE INDEX IF NOT EXISTS idx_connote_customer    ON daily_connote(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_connote_sender_norm ON daily_connote(sender_norm);
 
       CREATE TABLE IF NOT EXISTS receipts (
         id             SERIAL PRIMARY KEY,
