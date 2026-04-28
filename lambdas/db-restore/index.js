@@ -466,7 +466,5 @@ exports.handler = async (event) => {
     await seedConnote(bucket);
     console.log('Done! All tables seeded.');
     return { statusCode: 200, body: 'Seeded successfully' };
-  } finally {
-    await pool.end();
   }
 };
