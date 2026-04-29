@@ -281,10 +281,31 @@ async function queryJobByNumber(scNumber) {
   return rows.length > 0 ? rows[0] : null;
 }
 
-async function queryConnoteByName(name) {
+function normalise(text) {
+  return text ? text.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+}
+
+async function resolveCustomerId(name) {
+  const normName = normalise(name);
   const { rows } = await pool.query(
-    `SELECT * FROM daily_connote WHERE sender ILIKE $1 ORDER BY date_received DESC LIMIT 10`,
-    [`%${name}%`]
+    `SELECT customer_id FROM customers
+     WHERE customer_name_norm = $1
+        OR $1 LIKE customer_name_norm || '%'
+        OR customer_name_norm LIKE $1 || '%'
+     ORDER BY length(customer_name_norm) DESC
+     LIMIT 1`,
+    [normName]
+  );
+  return rows.length > 0 ? rows[0].customer_id : null;
+}
+
+async function queryConnoteByName(name) {
+  const customerId = await resolveCustomerId(name);
+  const { rows } = await pool.query(
+    `SELECT * FROM daily_connote
+     WHERE sender ILIKE $1 OR ($2::int IS NOT NULL AND customer_id = $2)
+     ORDER BY date_received DESC LIMIT 10`,
+    [`%${name}%`, customerId]
   );
   return rows;
 }
@@ -306,11 +327,13 @@ async function queryConnoteByReference(reference) {
 }
 
 async function queryRepairJobsByName(name) {
+  const customerId = await resolveCustomerId(name);
   const { rows } = await pool.query(
     `SELECT job_number, product_model, customer_name, date_opened, job_action, customer_comment, technician_comment
-     FROM repair_jobs WHERE customer_name ILIKE $1
+     FROM repair_jobs
+     WHERE customer_name ILIKE $1 OR ($2::int IS NOT NULL AND customer_id = $2)
      ORDER BY date_opened DESC LIMIT 10`,
-    [`%${name}%`]
+    [`%${name}%`, customerId]
   );
   return rows;
 }
