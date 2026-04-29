@@ -1191,10 +1191,14 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('Error:', error);
+    const isThrottle = error.name === 'ThrottlingException' || error.$metadata?.httpStatusCode === 429;
     return {
-      statusCode: 500,
+      statusCode: isThrottle ? 429 : 500,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Analysis failed', details: error.message }),
+      body: JSON.stringify({
+        error: isThrottle ? 'too_many_requests' : 'Analysis failed',
+        details: error.message,
+      }),
     };
   }
 };
