@@ -412,6 +412,7 @@ async function callBedrock(prompt, maxTokens = 2000) {
     }));
     const body = JSON.parse(new TextDecoder().decode(response.body));
     const text = body.content[0].text;
+    console.log('MODEL:', process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-haiku-4-5-20251001-v1:0');
     console.log('AI RESPONSE:', text);
     return text;
   } catch (err) {
