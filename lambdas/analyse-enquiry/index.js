@@ -853,13 +853,16 @@ async function handleUnitTracking(text, unitTrackingTerms = {}) {
 
   console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference);
 
+  // A pure numeric "tracking number" may actually be a reference — search both
+  const refTerm = reference || trackingNumber;
+
   // Query connote + repair jobs in parallel
   const [connoteByName, connoteByTracking, connoteByRef, repairJobsByName, repairJobsByRef] = await Promise.all([
     customerName   ? queryConnoteByName(customerName)          : Promise.resolve([]),
     trackingNumber ? queryConnoteByTracking(trackingNumber)    : Promise.resolve([]),
-    reference      ? queryConnoteByReference(reference)        : Promise.resolve([]),
+    refTerm        ? queryConnoteByReference(refTerm)          : Promise.resolve([]),
     customerName   ? queryRepairJobsByName(customerName)       : Promise.resolve([]),
-    reference      ? queryRepairJobsByReference(reference)     : Promise.resolve([]),
+    refTerm        ? queryRepairJobsByReference(refTerm)       : Promise.resolve([]),
   ]);
 
   // Deduplicate connote results by id
