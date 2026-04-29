@@ -401,7 +401,7 @@ async function detectModelFromDB(text) {
 async function callBedrock(prompt, maxTokens = 2000) {
   try {
     const response = await bedrockClient.send(new InvokeModelCommand({
-      modelId: process.env.BEDROCK_MODEL_ID || 'ap.anthropic.claude-3-5-sonnet-20241022-v2:0',
+      modelId: process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
       contentType: 'application/json',
       accept: 'application/json',
       body: JSON.stringify({
