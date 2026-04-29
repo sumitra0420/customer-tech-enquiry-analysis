@@ -398,7 +398,7 @@ async function detectModelFromDB(text) {
 }
 
 // ─── Shared Bedrock call (with retry on throttling) ───────────────────────────
-async function callBedrock(prompt, maxTokens = 2000, attempt = 1) {
+async function callBedrock(prompt, maxTokens = 2000) {
   try {
     const response = await bedrockClient.send(new InvokeModelCommand({
       modelId: process.env.BEDROCK_MODEL_ID || 'ap.anthropic.claude-3-5-sonnet-20241022-v2:0',
@@ -415,13 +415,6 @@ async function callBedrock(prompt, maxTokens = 2000, attempt = 1) {
     console.log('AI RESPONSE:', text);
     return text;
   } catch (err) {
-    const isThrottle = err.name === 'ThrottlingException' || err.$metadata?.httpStatusCode === 429;
-    if (isThrottle && attempt < 3) {
-      const delay = attempt * 1000; // 1s, 2s
-      console.log(`Bedrock throttled — retry ${attempt}/2 in ${delay}ms`);
-      await new Promise(r => setTimeout(r, delay));
-      return callBedrock(prompt, maxTokens, attempt + 1);
-    }
     throw err;
   }
 }
