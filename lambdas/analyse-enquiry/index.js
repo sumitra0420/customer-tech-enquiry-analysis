@@ -402,7 +402,9 @@ async function callBedrock(prompt, maxTokens = 2000, attempt = 1) {
       }),
     }));
     const body = JSON.parse(new TextDecoder().decode(response.body));
-    return body.content[0].text;
+    const text = body.content[0].text;
+    console.log('AI RESPONSE:', text);
+    return text;
   } catch (err) {
     const isThrottle = err.name === 'ThrottlingException' || err.$metadata?.httpStatusCode === 429;
     if (isThrottle && attempt < 3) {
