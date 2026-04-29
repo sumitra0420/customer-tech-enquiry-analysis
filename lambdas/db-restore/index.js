@@ -161,8 +161,8 @@ async function seedRepairJobs(bucket) {
       for (const row of batch) {
         const { customerId, customerName } = parseCustomerField(row.customer_name);
         await client.query(
-          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, customer_id, date_opened, job_action, technician_comment, serial_number, replacement_serial_number, date_closed, status, stage)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          `INSERT INTO repair_jobs (job_number, product_model, customer_comment, customer_name, customer_id, date_opened, job_action, technician_comment, serial_number, replacement_serial_number, date_closed, status, stage, reference)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            ON CONFLICT (job_number) DO UPDATE SET
              serial_number = EXCLUDED.serial_number,
              replacement_serial_number = EXCLUDED.replacement_serial_number,
@@ -171,7 +171,8 @@ async function seedRepairJobs(bucket) {
              status = EXCLUDED.status,
              stage = EXCLUDED.stage,
              customer_id = EXCLUDED.customer_id,
-             customer_name = EXCLUDED.customer_name`,
+             customer_name = EXCLUDED.customer_name,
+             reference = EXCLUDED.reference`,
           [
             row.job_number?.trim(),
             row.product_model?.trim().toUpperCase() || null,
@@ -186,6 +187,7 @@ async function seedRepairJobs(bucket) {
             row.date_closed || null,
             row.status?.trim() || null,
             row.stage?.trim() || null,
+            row.reference?.trim() || null,
           ]
         );
       }
@@ -395,6 +397,7 @@ async function createSchema() {
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS status VARCHAR(100);
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS stage VARCHAR(100);
       ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS customer_id INTEGER;
+      ALTER TABLE repair_jobs ADD COLUMN IF NOT EXISTS reference VARCHAR(200);
     `);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_repair_jobs_customer ON repair_jobs(customer_id)`);
     await client.query(`

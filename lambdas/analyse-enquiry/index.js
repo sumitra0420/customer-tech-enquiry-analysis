@@ -326,6 +326,15 @@ async function queryConnoteByReference(reference) {
   return rows;
 }
 
+async function queryRepairJobsByReference(reference) {
+  const { rows } = await pool.query(
+    `SELECT job_number, product_model, customer_name, date_opened, job_action, customer_comment, technician_comment, reference
+     FROM repair_jobs WHERE reference ILIKE $1 ORDER BY date_opened DESC LIMIT 10`,
+    [`%${reference}%`]
+  );
+  return rows;
+}
+
 async function queryRepairJobsByName(name) {
   const customerId = await resolveCustomerId(name);
   const { rows } = await pool.query(
@@ -845,11 +854,12 @@ async function handleUnitTracking(text, unitTrackingTerms = {}) {
   console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference);
 
   // Query connote + repair jobs in parallel
-  const [connoteByName, connoteByTracking, connoteByRef, repairJobs] = await Promise.all([
-    customerName   ? queryConnoteByName(customerName)       : Promise.resolve([]),
-    trackingNumber ? queryConnoteByTracking(trackingNumber) : Promise.resolve([]),
-    reference      ? queryConnoteByReference(reference)     : Promise.resolve([]),
-    customerName   ? queryRepairJobsByName(customerName)    : Promise.resolve([]),
+  const [connoteByName, connoteByTracking, connoteByRef, repairJobsByName, repairJobsByRef] = await Promise.all([
+    customerName   ? queryConnoteByName(customerName)          : Promise.resolve([]),
+    trackingNumber ? queryConnoteByTracking(trackingNumber)    : Promise.resolve([]),
+    reference      ? queryConnoteByReference(reference)        : Promise.resolve([]),
+    customerName   ? queryRepairJobsByName(customerName)       : Promise.resolve([]),
+    reference      ? queryRepairJobsByReference(reference)     : Promise.resolve([]),
   ]);
 
   // Deduplicate connote results by id
@@ -857,6 +867,14 @@ async function handleUnitTracking(text, unitTrackingTerms = {}) {
   const connoteRows = [...connoteByName, ...connoteByTracking, ...connoteByRef].filter(r => {
     if (seen.has(r.id)) return false;
     seen.add(r.id);
+    return true;
+  });
+
+  // Deduplicate repair jobs by job_number
+  const seenJobs = new Set();
+  const repairJobs = [...repairJobsByName, ...repairJobsByRef].filter(r => {
+    if (seenJobs.has(r.job_number)) return false;
+    seenJobs.add(r.job_number);
     return true;
   });
 

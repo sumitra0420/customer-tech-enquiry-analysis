@@ -83,6 +83,7 @@ def handler(event, context):
         'Date Closed': 'date_closed',
         'Status': 'status',
         'Stage': 'stage',
+        'Reference': 'reference',
     }
     df = df.rename(columns=rename_map)
 
@@ -90,7 +91,7 @@ def handler(event, context):
     expected_cols = [
         'job_number', 'product_model', 'customer_comment', 'customer_name',
         'date_opened', 'date_closed', 'status', 'stage', 'job_action', 'technician_comment',
-        'serial_number', 'replacement_serial_number',
+        'serial_number', 'replacement_serial_number', 'reference',
     ]
     df = df[[col for col in expected_cols if col in df.columns]]
 
