@@ -635,6 +635,14 @@ ${historyContext}
 QUESTION: ${text}
 
 Present the repair job information in a clear, organized format. Include all available details.
+Always format dates as DD Month YYYY (e.g. 05 April 2026) — never use MM/DD/YYYY or ambiguous numeric formats.
+
+After the job details, include a "**Current Status Interpretation**" section using the following logic — always use tentative language (might, could, likely) since you cannot confirm the exact stage:
+- If the technician comment mentions "replace" or "replacement" AND Replacement Serial Number is N/A AND the job is not closed → say something like: "The technician has confirmed the fault and indicated a replacement is needed. The job is likely waiting for the warehouse to issue a new unit."
+- If the technician comment mentions "replace" or "replacement" AND Replacement Serial Number is filled in AND the job is not closed → say something like: "A replacement unit has likely been assigned. The job might be awaiting dispatch from the warehouse."
+- If the job is closed → say something like: "This job appears to have been completed and closed."
+- Otherwise → briefly summarise the job status and stage as-is without guessing.
+
 Then include a section "**Customer Repair History**" summarising any previous jobs for this customer (models repaired, dates, outcomes).
 If the job was not found, say so clearly and suggest checking the job number.
 Use markdown formatting with bold labels for each field.`;
@@ -923,6 +931,7 @@ Provide a clear status report:
 
 If nothing is found in either table, say so clearly and suggest double-checking the customer name, tracking number, or reference number.
 Today's date is ${new Date().toLocaleDateString('en-AU')}. All dates in the system are valid historical records.
+Always format dates as DD Month YYYY (e.g. 05 April 2026) — never use MM/DD/YYYY or ambiguous numeric formats.
 Use markdown formatting.`;
 
   const analysis = await callBedrock(prompt, 600);
