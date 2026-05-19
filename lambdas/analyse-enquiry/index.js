@@ -289,10 +289,9 @@ async function resolveCustomerId(name) {
   const normName = normalise(name);
   const { rows } = await pool.query(
     `SELECT customer_id FROM customers
-     WHERE customer_name_norm = $1
-        OR $1 LIKE customer_name_norm || '%'
-        OR customer_name_norm LIKE $1 || '%'
-     ORDER BY length(customer_name_norm) DESC
+     WHERE similarity(customer_name_norm, $1) > 0.30
+        OR word_similarity($1, customer_name_norm) > 0.50
+     ORDER BY GREATEST(similarity(customer_name_norm, $1), word_similarity($1, customer_name_norm)) DESC
      LIMIT 1`,
     [normName]
   );
@@ -303,9 +302,13 @@ async function queryConnoteByName(name) {
   const customerId = await resolveCustomerId(name);
   const { rows } = await pool.query(
     `SELECT * FROM daily_connote
-     WHERE sender ILIKE $1 OR ($2::int IS NOT NULL AND customer_id = $2)
-     ORDER BY date_received DESC LIMIT 10`,
-    [`%${name}%`, customerId]
+     WHERE similarity(sender, $1) > 0.30
+        OR word_similarity($1, sender) > 0.50
+        OR ($2::int IS NOT NULL AND customer_id = $2)
+     ORDER BY GREATEST(similarity(sender, $1), word_similarity($1, sender)) DESC,
+              date_received DESC
+     LIMIT 10`,
+    [name, customerId]
   );
   return rows;
 }
@@ -340,9 +343,13 @@ async function queryRepairJobsByName(name) {
   const { rows } = await pool.query(
     `SELECT job_number, product_model, customer_name, date_opened, job_action, customer_comment, technician_comment
      FROM repair_jobs
-     WHERE customer_name ILIKE $1 OR ($2::int IS NOT NULL AND customer_id = $2)
-     ORDER BY date_opened DESC LIMIT 10`,
-    [`%${name}%`, customerId]
+     WHERE similarity(customer_name, $1) > 0.30
+        OR word_similarity($1, customer_name) > 0.50
+        OR ($2::int IS NOT NULL AND customer_id = $2)
+     ORDER BY GREATEST(similarity(customer_name, $1), word_similarity($1, customer_name)) DESC,
+              date_opened DESC
+     LIMIT 10`,
+    [name, customerId]
   );
   return rows;
 }
