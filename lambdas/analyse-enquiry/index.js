@@ -167,6 +167,22 @@ async function detectIntent(text) {
     return { intent: 'TECHNICIAN', aiCategory: null };
   }
 
+  // Email address — reliable regex, short-circuit before Bedrock
+  const emailMatch = text.match(/\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b/);
+  const extractedEmail = emailMatch ? emailMatch[0].toLowerCase() : null;
+  if (extractedEmail) {
+    return {
+      intent: 'UNIT_TRACKING',
+      aiCategory: null,
+      unitTrackingTerms: {
+        customerName: null,
+        trackingNumber: null,
+        reference: null,
+        email: extractedEmail,
+      },
+    };
+  }
+
   // RA number or long tracking number — reliable regex, short-circuit before Bedrock
   const raMatch = text.match(/\bRA\d+\b/i);
   const trackingMatch = text.match(/\b\d{8,}\b/);
@@ -178,6 +194,7 @@ async function detectIntent(text) {
         customerName: null,
         trackingNumber: trackingMatch ? trackingMatch[0] : null,
         reference: raMatch ? raMatch[0].toUpperCase() : null,
+        email: null,
       },
     };
   }
@@ -235,6 +252,7 @@ UNIT_TRACKING|NONE|NONE|NONE|RA0010590|NONE`;
       customerName:  nameRaw     && nameRaw     !== 'NONE' ? nameRaw     : null,
       trackingNumber: trackingRaw && trackingRaw !== 'NONE' ? trackingRaw : null,
       reference:     refRaw      && refRaw      !== 'NONE' ? refRaw      : null,
+      email: null,
     } : null,
   };
 }
@@ -859,25 +877,42 @@ List ALL models from the DATABASE LIST above — every single row, no exceptions
 // 7. UNIT_TRACKING: "Where is Cameron Gerhardy's parcel?" / "Has SC tracking 01993... been received?"
 // Checks daily_connote (warehouse receipt) + repair_jobs (booking status)
 async function handleUnitTracking(text, unitTrackingTerms = {}) {
-  const { customerName, trackingNumber, reference } = unitTrackingTerms;
+  const { customerName, trackingNumber, reference, email } = unitTrackingTerms;
 
-  console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference);
+  console.log('UNIT_TRACKING extracted — Name:', customerName, '| Tracking:', trackingNumber, '| Ref:', reference, '| Email:', email);
+
+  // Resolve customer by email if provided
+  let emailCustomerId = null;
+  let emailCustomerName = null;
+  if (email) {
+    const { rows } = await pool.query(
+      `SELECT customer_id, customer_name FROM customers WHERE LOWER(email) = $1 LIMIT 1`,
+      [email]
+    );
+    if (rows.length > 0) {
+      emailCustomerId = rows[0].customer_id;
+      emailCustomerName = rows[0].customer_name;
+    }
+  }
 
   // A pure numeric "tracking number" may actually be a reference — search both
   const refTerm = reference || trackingNumber;
 
   // Query connote + repair jobs in parallel
-  const [connoteByName, connoteByTracking, connoteByRef, repairJobsByName, repairJobsByRef] = await Promise.all([
+  const [connoteByName, connoteByTracking, connoteByRef, connoteByEmailId,
+         repairJobsByName, repairJobsByRef, repairJobsByEmailId] = await Promise.all([
     customerName   ? queryConnoteByName(customerName)          : Promise.resolve([]),
     trackingNumber ? queryConnoteByTracking(trackingNumber)    : Promise.resolve([]),
     refTerm        ? queryConnoteByReference(refTerm)          : Promise.resolve([]),
+    emailCustomerId ? pool.query(`SELECT * FROM daily_connote WHERE customer_id = $1 ORDER BY date_received DESC LIMIT 10`, [emailCustomerId]).then(r => r.rows) : Promise.resolve([]),
     customerName   ? queryRepairJobsByName(customerName)       : Promise.resolve([]),
     refTerm        ? queryRepairJobsByReference(refTerm)       : Promise.resolve([]),
+    emailCustomerId ? pool.query(`SELECT job_number, product_model, customer_name, date_opened, job_action, customer_comment, technician_comment FROM repair_jobs WHERE customer_id = $1 ORDER BY date_opened DESC LIMIT 10`, [emailCustomerId]).then(r => r.rows) : Promise.resolve([]),
   ]);
 
   // Deduplicate connote results by id
   const seen = new Set();
-  const connoteRows = [...connoteByName, ...connoteByTracking, ...connoteByRef].filter(r => {
+  const connoteRows = [...connoteByName, ...connoteByTracking, ...connoteByRef, ...connoteByEmailId].filter(r => {
     if (seen.has(r.id)) return false;
     seen.add(r.id);
     return true;
@@ -885,7 +920,7 @@ async function handleUnitTracking(text, unitTrackingTerms = {}) {
 
   // Deduplicate repair jobs by job_number
   const seenJobs = new Set();
-  const repairJobs = [...repairJobsByName, ...repairJobsByRef].filter(r => {
+  const repairJobs = [...repairJobsByName, ...repairJobsByRef, ...repairJobsByEmailId].filter(r => {
     if (seenJobs.has(r.job_number)) return false;
     seenJobs.add(r.job_number);
     return true;
@@ -919,7 +954,7 @@ async function handleUnitTracking(text, unitTrackingTerms = {}) {
   const prompt = `You are a logistics and repair tracking assistant for Uniden Australia warehouse and customer service.
 
 QUESTION: ${text}
-SEARCHED FOR: ${[customerName && `Name: "${customerName}"`, trackingNumber && `Tracking: "${trackingNumber}"`, reference && `Reference: "${reference}"`].filter(Boolean).join(', ')}
+SEARCHED FOR: ${[customerName && `Name: "${customerName}"`, trackingNumber && `Tracking: "${trackingNumber}"`, reference && `Reference: "${reference}"`, email && `Email: "${email}"${emailCustomerName ? ` → resolved to "${emailCustomerName}"` : ' → no matching customer found'}`].filter(Boolean).join(', ')}
 
 CONNOTE / DELIVERY LOG (parcels received at Uniden warehouse):
 ${connoteContext}
