@@ -44,12 +44,15 @@ def handler(event, context):
             skipped += 1
             continue
 
-        clean_rows.append({'customer_id': int(cid), 'customer_name': name, 'customer_name_norm': normalise(name)})
+        email = row.get('Email', '').strip().lower() or None
+        if email and email.startswith('dummy'):
+            email = None
+        clean_rows.append({'customer_id': int(cid), 'customer_name': name, 'customer_name_norm': normalise(name), 'email': email or ''})
 
     print(f'Clean: {len(clean_rows)} rows, skipped: {skipped}')
 
     out = io.StringIO()
-    writer = csv.DictWriter(out, fieldnames=['customer_id', 'customer_name', 'customer_name_norm'])
+    writer = csv.DictWriter(out, fieldnames=['customer_id', 'customer_name', 'customer_name_norm', 'email'])
     writer.writeheader()
     writer.writerows(clean_rows)
 

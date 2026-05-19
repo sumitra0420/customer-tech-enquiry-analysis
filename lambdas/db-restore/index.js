@@ -118,13 +118,16 @@ async function seedCustomers(bucket) {
       const customerId = parseInt(row.customer_id);
       const customerName = row.customer_name?.trim();
       if (!customerId || !customerName) continue;
+      const email = row.email?.trim().toLowerCase() || null;
+      const cleanEmail = email && !email.startsWith('dummy') ? email : null;
       await client.query(
-        `INSERT INTO customers (customer_id, customer_name, customer_name_norm)
-         VALUES ($1, $2, $3)
+        `INSERT INTO customers (customer_id, customer_name, customer_name_norm, email)
+         VALUES ($1, $2, $3, $4)
          ON CONFLICT (customer_id) DO UPDATE SET
            customer_name      = EXCLUDED.customer_name,
-           customer_name_norm = EXCLUDED.customer_name_norm`,
-        [customerId, customerName, row.customer_name_norm?.trim() || normalise(customerName)]
+           customer_name_norm = EXCLUDED.customer_name_norm,
+           email              = EXCLUDED.email`,
+        [customerId, customerName, row.customer_name_norm?.trim() || normalise(customerName), cleanEmail]
       );
     }
     await client.query('COMMIT');
@@ -354,6 +357,8 @@ async function createSchema() {
     `);
     await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_name_norm TEXT`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_customers_name_norm ON customers(customer_name_norm)`);
+    await client.query(`ALTER TABLE customers ADD COLUMN IF NOT EXISTS email TEXT`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_customers_email ON customers(LOWER(email))`);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
@@ -448,6 +453,12 @@ async function createSchema() {
       CREATE INDEX IF NOT EXISTS idx_receipts_customer ON receipts(LOWER(customer_name));
       CREATE INDEX IF NOT EXISTS idx_receipts_model    ON receipts(LOWER(model_number));
     `);
+    // pg_trgm fuzzy name search
+    await client.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_customers_name_norm_trgm ON customers USING GIN (customer_name_norm gin_trgm_ops)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_connote_sender_trgm ON daily_connote USING GIN (sender gin_trgm_ops)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_repair_jobs_customer_name_trgm ON repair_jobs USING GIN (customer_name gin_trgm_ops)`);
+
     console.log('  ✓ Schema ready');
   } finally {
     client.release();
