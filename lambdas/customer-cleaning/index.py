@@ -45,7 +45,7 @@ def handler(event, context):
             continue
 
         email = row.get('Email', '').strip().lower() or None
-        if email and email.startswith('dummy'):
+        if email and (email.startswith('dummy') or email.startswith('dumy')):
             email = None
         clean_rows.append({'customer_id': int(cid), 'customer_name': name, 'customer_name_norm': normalise(name), 'email': email or ''})
 

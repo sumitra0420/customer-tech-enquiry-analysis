@@ -118,8 +118,7 @@ async function seedCustomers(bucket) {
       const customerId = parseInt(row.customer_id);
       const customerName = row.customer_name?.trim();
       if (!customerId || !customerName) continue;
-      const email = row.email?.trim().toLowerCase() || null;
-      const cleanEmail = email && !email.startsWith('dummy') ? email : null;
+      const cleanEmail = row.email?.trim().toLowerCase() || null;
       await client.query(
         `INSERT INTO customers (customer_id, customer_name, customer_name_norm, email)
          VALUES ($1, $2, $3, $4)
