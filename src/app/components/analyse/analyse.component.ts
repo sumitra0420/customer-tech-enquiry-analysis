@@ -115,7 +115,7 @@ export class AnalyseComponent implements OnInit, OnDestroy {
         if (response.status === 429) {
           throw new Error('The system is receiving too many requests right now. Please wait a moment and try again.');
         }
-        throw new Error('Analysis failed. Please try again.');
+        throw new Error('Service is temporarily unavailable. Please wait a moment and try again.');
       }
 
       const data = await response.json();
