@@ -85,6 +85,7 @@ jobs:
           cd ../repair-data-cleaning && zip -r function.zip index.py
           cd ../customer-cleaning && zip -r function.zip index.py
           cd ../sharepoint-sync && zip -r function.zip index.py
+          cd ../connote-excel-cleaning && zip -r function.zip index.py
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -113,7 +114,7 @@ jobs:
 
       - name: Deploy Python Lambdas
         run: |
-          for fn in connote-cleaning repair-data-cleaning customer-cleaning sharepoint-sync; do
+          for fn in connote-cleaning repair-data-cleaning customer-cleaning sharepoint-sync connote-excel-cleaning; do
             aws lambda update-function-code \
               --function-name ${{ secrets.PERSONAL_PROJECT_NAME }}-$fn \
               --zip-file fileb://lambdas/$fn/function.zip

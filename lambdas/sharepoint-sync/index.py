@@ -3,6 +3,7 @@ import os
 import boto3
 import urllib.request
 import urllib.parse
+from datetime import datetime, timezone
 
 s3 = boto3.client('s3')
 secrets = boto3.client('secretsmanager', region_name=os.environ.get('AWS_REGION', 'ap-southeast-2'))
@@ -11,8 +12,7 @@ SECRET_NAME = os.environ.get('SHAREPOINT_SECRET_NAME', 'tech-enquiry/sharepoint-
 S3_BUCKET = os.environ['S3_BUCKET']
 
 DRIVE_ID = 'b!jp8NK0_pBEavZSoam906ObYCGL02fUFPi5K9ZCGrRUfBgBP6o2UkT4k1bk4h0uvZ'
-FILE_NAME = 'DAILY CONNOTE.xlsx'
-S3_KEY = 'raw/daily_connote.xlsx'
+FILE_NAME = 'Testing/testing_connote.xlsx'
 
 
 def get_credentials():
@@ -39,7 +39,7 @@ def get_access_token(tenant_id, client_id, client_secret):
 
 
 def download_file(token):
-    encoded_file = urllib.parse.quote(FILE_NAME)
+    encoded_file = urllib.parse.quote(FILE_NAME, safe='/')
     url = f'https://graph.microsoft.com/v1.0/drives/{DRIVE_ID}/root:/{encoded_file}:/content'
 
     req = urllib.request.Request(url, headers={'Authorization': f'Bearer {token}'})
@@ -51,6 +51,9 @@ def download_file(token):
 
 
 def handler(event, context):
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+    s3_key = f'raw/sharepoint/connote_{timestamp}.xlsx'
+
     print(f'Downloading "{FILE_NAME}" from SharePoint drive: {DRIVE_ID}')
 
     tenant_id, client_id, client_secret = get_credentials()
@@ -59,19 +62,19 @@ def handler(event, context):
 
     s3.put_object(
         Bucket=S3_BUCKET,
-        Key=S3_KEY,
+        Key=s3_key,
         Body=content,
         ContentType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
 
-    print(f'Saved to s3://{S3_BUCKET}/{S3_KEY}')
+    print(f'Saved to s3://{S3_BUCKET}/{s3_key}')
 
     return {
         'statusCode': 200,
         'body': json.dumps({
             'message': 'Download successful',
             'file': FILE_NAME,
-            's3': f's3://{S3_BUCKET}/{S3_KEY}',
+            's3': f's3://{S3_BUCKET}/{s3_key}',
             'size_bytes': len(content),
         }),
     }
