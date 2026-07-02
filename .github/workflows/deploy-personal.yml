@@ -76,11 +76,15 @@ jobs:
       - name: Install db-restore dependencies
         run: cd lambdas/db-restore && npm ci
 
+      - name: Install connote-db-upload dependencies
+        run: cd lambdas/connote-db-upload && npm ci
+
       - name: Package Lambdas
         run: |
           cd lambdas/analyse-enquiry && zip -r function.zip index.js node_modules/
           cd ../db-warmup && zip -r function.zip index.js node_modules/
           cd ../db-restore && zip -r function.zip index.js node_modules/
+          cd ../connote-db-upload && zip -r function.zip index.js node_modules/
           cd ../connote-cleaning && zip -r function.zip index.py
           cd ../repair-data-cleaning && zip -r function.zip index.py
           cd ../customer-cleaning && zip -r function.zip index.py
@@ -111,6 +115,12 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ secrets.PERSONAL_DB_RESTORE_FUNCTION_NAME }} \
             --zip-file fileb://lambdas/db-restore/function.zip
+
+      - name: Deploy connote-db-upload Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.PERSONAL_PROJECT_NAME }}-connote-db-upload \
+            --zip-file fileb://lambdas/connote-db-upload/function.zip
 
       - name: Deploy Python Lambdas
         run: |

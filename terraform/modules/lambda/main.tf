@@ -107,10 +107,11 @@ data "archive_file" "placeholder_python" {
 }
 locals {
   lambda_functions = {
-    "analyse-enquiry"   = "lambdas/analyse-enquiry"   # Bedrock analysis
-    "db-warmup"         = "lambdas/db-warmup"         # Wakes Aurora
-    "db-restore"        = "lambdas/db-restore"        # DB restore from S3
-    "receipt-extractor" = "lambdas/receipt-extractor" # Receipt photo → Bedrock vision → Aurora
+    "analyse-enquiry"    = "lambdas/analyse-enquiry"    # Bedrock analysis
+    "db-warmup"          = "lambdas/db-warmup"          # Wakes Aurora
+    "db-restore"         = "lambdas/db-restore"         # DB restore from S3
+    "receipt-extractor"  = "lambdas/receipt-extractor"  # Receipt photo → Bedrock vision → Aurora
+    "connote-db-upload"  = "lambdas/connote-db-upload"  # Insert new connote rows from cleaned CSV
   }
 
   common_env_vars = {
@@ -230,11 +231,19 @@ resource "aws_s3_bucket_notification" "s3_uploads" {
     filter_suffix       = ".xlsx"
   }
 
+  lambda_function {
+    lambda_function_arn = aws_lambda_function.functions["connote-db-upload"].arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "raw/connote_csv/"
+    filter_suffix       = ".csv"
+  }
+
   depends_on = [
     aws_lambda_permission.s3_invoke_repair_cleaning,
     aws_lambda_permission.s3_invoke_connote_cleaning,
     aws_lambda_permission.s3_invoke_customer_cleaning,
     aws_lambda_permission.s3_invoke_connote_excel_cleaning,
+    aws_lambda_permission.s3_invoke_connote_db_upload,
   ]
 }
 
@@ -301,6 +310,14 @@ resource "aws_lambda_permission" "s3_invoke_connote_excel_cleaning" {
   statement_id  = "AllowS3Invoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.connote_excel_cleaning.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = var.s3_bucket_arn
+}
+
+resource "aws_lambda_permission" "s3_invoke_connote_db_upload" {
+  statement_id  = "AllowS3Invoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.functions["connote-db-upload"].function_name
   principal     = "s3.amazonaws.com"
   source_arn    = var.s3_bucket_arn
 }
