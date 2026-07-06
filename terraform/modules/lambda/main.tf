@@ -346,6 +346,52 @@ resource "aws_lambda_function" "sharepoint_sync" {
   }
 }
 
+# EventBridge Scheduler — triggers sharepoint-sync daily at 4pm Sydney time
+# Uses Australia/Sydney timezone so daylight saving is handled automatically
+resource "aws_scheduler_schedule" "sharepoint_sync_daily" {
+  name       = "${var.project_name}-sharepoint-sync-daily"
+  group_name = "default"
+
+  flexible_time_window {
+    mode = "OFF"
+  }
+
+  schedule_expression          = "cron(0 16 * * ? *)"
+  schedule_expression_timezone = "Australia/Sydney"
+
+  target {
+    arn      = aws_lambda_function.sharepoint_sync.arn
+    role_arn = aws_iam_role.scheduler.arn
+  }
+}
+
+resource "aws_iam_role" "scheduler" {
+  name = "${var.project_name}-scheduler-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "scheduler.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "scheduler" {
+  name = "${var.project_name}-scheduler-policy"
+  role = aws_iam_role.scheduler.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "lambda:InvokeFunction"
+      Resource = aws_lambda_function.sharepoint_sync.arn
+    }]
+  })
+}
+
 resource "aws_lambda_function" "functions" {
   for_each = local.lambda_functions
 
