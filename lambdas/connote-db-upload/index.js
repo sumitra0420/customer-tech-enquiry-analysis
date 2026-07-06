@@ -42,16 +42,25 @@ exports.handler = async (event) => {
       const tracking = row.tracking?.trim() || null;
       if (!tracking) { skipped++; continue; }
 
+      const reference = row.reference?.trim() || null;
+      const sender = row.sender?.trim() || null;
+
+      // Check if this exact row already exists before inserting
+      const exists = await client.query(
+        `SELECT 1 FROM daily_connote WHERE tracking = $1 AND reference IS NOT DISTINCT FROM $2 AND sender IS NOT DISTINCT FROM $3 LIMIT 1`,
+        [tracking, reference, sender]
+      );
+      if (exists.rowCount > 0) { skipped++; continue; }
+
       const result = await client.query(
         `INSERT INTO daily_connote (date_received, courier, tracking, reference, sender, sender_norm, received_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (tracking) DO NOTHING`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           row.received_date || null,
           row.courier?.trim() || null,
           tracking,
-          row.reference?.trim() || null,
-          row.sender?.trim() || null,
+          reference,
+          sender,
           row.sender_norm?.trim() || normalise(row.sender),
           row.received_by?.trim() || null,
         ]

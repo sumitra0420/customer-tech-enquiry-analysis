@@ -436,15 +436,6 @@ async function createSchema() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_connote_customer    ON daily_connote(customer_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_connote_sender_norm ON daily_connote(sender_norm)`);
     await client.query(`
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint WHERE conname = 'daily_connote_tracking_unique'
-        ) THEN
-          ALTER TABLE daily_connote ADD CONSTRAINT daily_connote_tracking_unique UNIQUE (tracking);
-        END IF;
-      END $$
-    `);
-    await client.query(`
 
       CREATE TABLE IF NOT EXISTS receipts (
         id             SERIAL PRIMARY KEY,
