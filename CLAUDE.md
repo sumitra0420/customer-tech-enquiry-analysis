@@ -33,7 +33,7 @@ cd lambdas/<name> && zip function.zip index.py && aws lambda update-function-cod
 | `db-restore` | Full DB seed from S3 CSVs + runs schema migrations |
 | `db-warmup` | Wakes RDS |
 | `receipt-extractor` | Receipt photo → Bedrock vision → DB |
-| `connote-db-upload` | Inserts new connote rows (ON CONFLICT tracking DO NOTHING) |
+| `connote-db-upload` | Inserts new connote rows, skips exact duplicates (tracking + reference + sender) |
 
 ### Python (no VPC, data processing only)
 | Name | Purpose |
@@ -43,6 +43,14 @@ cd lambdas/<name> && zip function.zip index.py && aws lambda update-function-cod
 | `connote-cleaning` | CSV cleaner (triggered by `uploads/connote/*.csv`) |
 | `repair-data-cleaning` | NetSuite CSV cleaner (triggered by `uploads/netsuite/*.csv`) |
 | `customer-cleaning` | Customer CSV cleaner (triggered by `uploads/customers/*.csv`) |
+
+## Claude Behaviour Instructions
+- After every code change, always proactively provide a detailed git commit message without being asked
+- Commit message format:
+  - First line: short summary (under 70 chars) of WHAT changed and WHY
+  - Blank line
+  - Bullet points explaining each file changed and the reason
+- Always run `git diff` and `git status` first to base the message on actual changes, not assumptions
 
 ## Connote Pipeline
 ```

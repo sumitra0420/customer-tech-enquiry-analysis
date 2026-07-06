@@ -70,7 +70,7 @@ exports.handler = async (event) => {
     }
 
     // Match newly inserted unmatched rows to customers
-    await client.query(`
+    const matchResult = await client.query(`
       UPDATE daily_connote dc
       SET customer_id = best.customer_id
       FROM (
@@ -86,11 +86,28 @@ exports.handler = async (event) => {
       ) best
       WHERE dc.id = best.id
     `);
+    const customerMatched = matchResult.rowCount;
+
+    // Total records in database after insert
+    const totalResult = await client.query(`SELECT COUNT(*) FROM daily_connote`);
+    const totalRecords = parseInt(totalResult.rows[0].count);
+
+    // Unmatched records (no customer linked)
+    const unmatchedResult = await client.query(`SELECT COUNT(*) FROM daily_connote WHERE customer_id IS NULL`);
+    const unmatchedRecords = parseInt(unmatchedResult.rows[0].count);
 
     await client.query('COMMIT');
-    console.log(`  ✓ ${inserted} inserted, ${skipped} skipped (duplicate tracking or no tracking)`);
 
-    return { statusCode: 200, body: JSON.stringify({ inserted, skipped }) };
+    console.log(`--- connote-db-upload summary ---`);
+    console.log(`  CSV rows:           ${records.length}`);
+    console.log(`  Inserted (new):     ${inserted}`);
+    console.log(`  Skipped (existing): ${skipped}`);
+    console.log(`  Customer matched:   ${customerMatched}`);
+    console.log(`  Total in DB:        ${totalRecords}`);
+    console.log(`  Unmatched senders:  ${unmatchedRecords}`);
+    console.log(`---------------------------------`);
+
+    return { statusCode: 200, body: JSON.stringify({ inserted, skipped, customerMatched, totalRecords, unmatchedRecords }) };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
