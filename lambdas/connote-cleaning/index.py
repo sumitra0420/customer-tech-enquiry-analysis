@@ -85,9 +85,9 @@ def handler(event, context):
         lambda_client.invoke(
             FunctionName=db_restore_function,
             InvocationType='Event',
-            Payload=json.dumps({'bucket': bucket}),
+            Payload=json.dumps({'bucket': bucket, 'tables': ['connote']}),
         )
-        print(f'Triggered db-restore: {db_restore_function}')
+        print(f'Triggered db-restore: {db_restore_function} (connote only)')
 
     return {
         'statusCode': 200,

@@ -466,16 +466,25 @@ async function createSchema() {
 
 exports.handler = async (event) => {
   const bucket = event.bucket || process.env.S3_BUCKET;
-  console.log(`Seeding from s3://${bucket}/database/...`);
+  const tables = event.tables || null; // null = full restore; ['repair_jobs'] = targeted seed
+  const fullRestore = !tables;
+
+  if (fullRestore) {
+    console.log(`Full restore from s3://${bucket}/database/...`);
+  } else {
+    console.log(`Targeted seed from s3://${bucket}/database/... tables=${tables.join(',')}`);
+  }
 
   await createSchema();
-  await seedCustomers(bucket);
-  await seedProducts(bucket);
-  await seedKnowledgeBase(bucket);
-  await seedRepairJobs(bucket);
-  await seedPolicies(bucket);
-  await seedDiscontinuedProducts(bucket);
-  await seedConnote(bucket);
+
+  if (fullRestore || tables.includes('customers'))         await seedCustomers(bucket);
+  if (fullRestore || tables.includes('products'))          await seedProducts(bucket);
+  if (fullRestore || tables.includes('knowledge_base'))    await seedKnowledgeBase(bucket);
+  if (fullRestore || tables.includes('repair_jobs'))       await seedRepairJobs(bucket);
+  if (fullRestore || tables.includes('policies'))          await seedPolicies(bucket);
+  if (fullRestore || tables.includes('discontinued'))      await seedDiscontinuedProducts(bucket);
+  if (fullRestore || tables.includes('connote'))           await seedConnote(bucket);
+
   console.log('Done! All tables seeded.');
   return { statusCode: 200, body: 'Seeded successfully' };
 };
