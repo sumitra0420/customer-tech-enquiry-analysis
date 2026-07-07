@@ -399,7 +399,7 @@ resource "aws_lambda_function" "functions" {
   role          = aws_iam_role.lambda.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  timeout       = each.key == "analyse-enquiry" ? 60 : each.key == "db-restore" ? 300 : each.key == "receipt-extractor" ? 60 : each.key == "db-warmup" ? 60 : 30
+  timeout       = each.key == "analyse-enquiry" ? 60 : each.key == "db-restore" ? 300 : each.key == "receipt-extractor" ? 60 : each.key == "db-warmup" ? 60 : each.key == "connote-db-upload" ? 120 : 30
   memory_size   = each.key == "analyse-enquiry" || each.key == "receipt-extractor" ? 512 : 256
 
   filename         = data.archive_file.placeholder.output_path

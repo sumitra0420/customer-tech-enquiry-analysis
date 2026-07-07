@@ -1,5 +1,5 @@
 const { Pool } = require('pg');
-const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, GetObjectCommand, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { parse } = require('csv-parse/sync');
 
 const s3 = new S3Client({ region: process.env.AWS_REGION || 'ap-southeast-2' });
@@ -17,6 +17,19 @@ const pool = new Pool({
 
 function normalise(text) {
   return text ? text.toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+}
+
+function toCSV(rows, includeHeader = true) {
+  if (rows.length === 0) return '';
+  const headers = Object.keys(rows[0]);
+  const escape = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = v instanceof Date ? v.toISOString().split('T')[0] : String(v);
+    return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const lines = includeHeader ? [headers.join(',')] : [];
+  for (const row of rows) lines.push(headers.map(h => escape(row[h])).join(','));
+  return lines.join('\n');
 }
 
 exports.handler = async (event) => {
@@ -37,6 +50,7 @@ exports.handler = async (event) => {
 
     let inserted = 0;
     let skipped = 0;
+    const insertedIds = [];
 
     for (const row of records) {
       const tracking = row.tracking?.trim() || null;
@@ -54,7 +68,8 @@ exports.handler = async (event) => {
 
       const result = await client.query(
         `INSERT INTO daily_connote (date_received, courier, tracking, reference, sender, sender_norm, received_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id`,
         [
           row.received_date || null,
           row.courier?.trim() || null,
@@ -65,7 +80,7 @@ exports.handler = async (event) => {
           row.received_by?.trim() || null,
         ]
       );
-      if (result.rowCount > 0) inserted++;
+      if (result.rowCount > 0) { inserted++; insertedIds.push(result.rows[0].id); }
       else skipped++;
     }
 
@@ -98,6 +113,36 @@ exports.handler = async (event) => {
 
     await client.query('COMMIT');
 
+    // Append only newly inserted rows to the S3 snapshot — faster than full export
+    if (insertedIds.length > 0) {
+      // Fetch final state of inserted rows (customer_id now populated by the UPDATE above)
+      const newRowsResult = await client.query(
+        `SELECT id, date_received, courier, tracking, reference, sender, sender_norm, received_by, customer_id
+         FROM daily_connote WHERE id = ANY($1) ORDER BY id`,
+        [insertedIds]
+      );
+
+      // Download existing CSV (start fresh if the file doesn't exist yet)
+      let existingCsv = '';
+      try {
+        const existing = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: 'database/daily_connote.csv' }));
+        existingCsv = await existing.Body.transformToString('utf8');
+      } catch (err) {
+        if (err.name !== 'NoSuchKey') throw err;
+      }
+
+      // Append new rows — include header only if the file is being created for the first time
+      const newLines = toCSV(newRowsResult.rows, !existingCsv);
+      const updatedCsv = existingCsv ? existingCsv.trimEnd() + '\n' + newLines : newLines;
+
+      await s3.send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: 'database/daily_connote.csv',
+        Body: updatedCsv,
+        ContentType: 'text/csv',
+      }));
+    }
+
     console.log(`--- connote-db-upload summary ---`);
     console.log(`  CSV rows:           ${records.length}`);
     console.log(`  Inserted (new):     ${inserted}`);
@@ -105,6 +150,7 @@ exports.handler = async (event) => {
     console.log(`  Customer matched:   ${customerMatched}`);
     console.log(`  Total in DB:        ${totalRecords}`);
     console.log(`  Unmatched senders:  ${unmatchedRecords}`);
+    console.log(`  S3 backup:          +${insertedIds.length} rows appended → database/daily_connote.csv`);
     console.log(`---------------------------------`);
 
     return { statusCode: 200, body: JSON.stringify({ inserted, skipped, customerMatched, totalRecords, unmatchedRecords }) };
