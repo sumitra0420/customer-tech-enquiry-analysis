@@ -12,7 +12,7 @@ SECRET_NAME = os.environ.get('SHAREPOINT_SECRET_NAME', 'tech-enquiry/sharepoint-
 S3_BUCKET = os.environ['S3_BUCKET']
 
 DRIVE_ID = 'b!jp8NK0_pBEavZSoam906ObYCGL02fUFPi5K9ZCGrRUfBgBP6o2UkT4k1bk4h0uvZ'
-FILE_NAME = 'Testing/DAILY CONNOTE.xlsx'
+FILE_NAME = 'DAILY CONNOTE.xlsx'
 
 
 def get_credentials():
