@@ -33,6 +33,24 @@ function toCSV(rows, includeHeader = true) {
 }
 
 exports.handler = async (event) => {
+  // forceExport: one-time full export of daily_connote to S3 — use when CSV is out of sync with DB
+  if (event.forceExport === true) {
+    const bucket = event.bucket || process.env.S3_BUCKET;
+    const client = await pool.connect();
+    try {
+      const allRows = await client.query(
+        `SELECT id, date_received, courier, tracking, reference, sender, sender_norm, received_by, customer_id
+         FROM daily_connote ORDER BY id`
+      );
+      const csv = toCSV(allRows.rows);
+      await s3.send(new PutObjectCommand({ Bucket: bucket, Key: 'database/daily_connote.csv', Body: csv, ContentType: 'text/csv' }));
+      console.log(`Force export: ${allRows.rows.length} rows written to database/daily_connote.csv`);
+      return { statusCode: 200, body: JSON.stringify({ exported: allRows.rows.length }) };
+    } finally {
+      client.release();
+    }
+  }
+
   const bucket = event.Records[0].s3.bucket.name;
   const key = decodeURIComponent(event.Records[0].s3.object.key.replace(/\+/g, ' '));
 
