@@ -318,15 +318,17 @@ async function resolveCustomerId(name) {
 
 async function queryConnoteByName(name) {
   const customerId = await resolveCustomerId(name);
+  const lower = name.toLowerCase();
   const { rows } = await pool.query(
     `SELECT * FROM daily_connote
-     WHERE similarity(sender, $1) > 0.30
-        OR word_similarity($1, sender) > 0.50
+     WHERE LOWER(sender) = $1
+        OR similarity(LOWER(sender), $1) > 0.30
+        OR word_similarity($1, LOWER(sender)) > 0.50
         OR ($2::int IS NOT NULL AND customer_id = $2)
-     ORDER BY GREATEST(similarity(sender, $1), word_similarity($1, sender)) DESC,
+     ORDER BY GREATEST(similarity(LOWER(sender), $1), word_similarity($1, LOWER(sender))) DESC,
               date_received DESC
      LIMIT 10`,
-    [name, customerId]
+    [lower, customerId]
   );
   return rows;
 }
@@ -358,16 +360,18 @@ async function queryRepairJobsByReference(reference) {
 
 async function queryRepairJobsByName(name) {
   const customerId = await resolveCustomerId(name);
+  const lower = name.toLowerCase();
   const { rows } = await pool.query(
     `SELECT job_number, product_model, customer_name, date_opened, job_action, customer_comment, technician_comment
      FROM repair_jobs
-     WHERE similarity(customer_name, $1) > 0.30
-        OR word_similarity($1, customer_name) > 0.50
+     WHERE LOWER(customer_name) = $1
+        OR similarity(LOWER(customer_name), $1) > 0.30
+        OR word_similarity($1, LOWER(customer_name)) > 0.50
         OR ($2::int IS NOT NULL AND customer_id = $2)
-     ORDER BY GREATEST(similarity(customer_name, $1), word_similarity($1, customer_name)) DESC,
+     ORDER BY GREATEST(similarity(LOWER(customer_name), $1), word_similarity($1, LOWER(customer_name))) DESC,
               date_opened DESC
      LIMIT 10`,
-    [name, customerId]
+    [lower, customerId]
   );
   return rows;
 }
