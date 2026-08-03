@@ -165,17 +165,11 @@
 
       @if (dashboardData(); as data) {
         <!-- KPI Row -->
-        <div class="grid grid-cols-4 gap-3">
+        <div class="grid grid-cols-3 gap-3">
           <div class="bg-white rounded-xl border border-gray-200 p-4">
             <div class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Total Jobs in DB</div>
             <div class="text-2xl font-bold text-gray-900 leading-none">{{ data.kpis.totalJobs }}</div>
             <div class="text-[11px] text-gray-500 mt-1">{{ data.model }} repair records</div>
-          </div>
-
-          <div class="bg-white rounded-xl border border-gray-200 p-4">
-            <div class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Share of All Models</div>
-            <div class="text-2xl font-bold text-gray-900 leading-none">{{ data.kpis.sharePercent }}<span class="text-base font-medium">%</span></div>
-            <div class="text-[11px] text-gray-500 mt-1">of {{ data.kpis.allModelsTotalJobs }} total repair jobs</div>
           </div>
 
           <div class="bg-white rounded-xl border border-gray-200 p-4">
