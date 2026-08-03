@@ -230,7 +230,7 @@
           <div class="bg-white rounded-xl border border-gray-200 overflow-hidden flex flex-col">
             <div class="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between">
               <div>
-                <div class="text-sm font-semibold text-gray-900">50 Most Recent Repair Jobs</div>
+                <div class="text-sm font-semibold text-gray-900">{{ data.recentJobs.length }} Most Recent Repair Jobs</div>
                 <div class="text-[11px] text-gray-400 mt-0.5">Showing latest {{ data.recentJobs.length }} of {{ data.kpis.totalJobs }} total — sorted newest first</div>
               </div>
               <button (click)="exportCsv()"

@@ -26,7 +26,8 @@ const CORS_HEADERS = {
   'Content-Type': 'application/json',
 };
 
-const FAULT_SAMPLE_LIMIT = 300;
+const FAULT_SAMPLE_LIMIT = 1000;
+const RECENT_JOBS_LIMIT = 100;
 const TREND_MONTHS = 18;
 const SD_CARD_WARNING_THRESHOLD = 0.10;
 const OUTCOME_BUCKETS = ['Unable to Confirm Fault', 'Fault Confirmed', 'Firmware Update Fixed It', 'SD Card Issue', 'Other'];
@@ -129,9 +130,9 @@ async function queryTrend(model) {
   return { months, counts };
 }
 
-// Fetches up to `limit` jobs newest-first. The first 50 of these double as the
-// "recent jobs" table, so the AI classification (over this same ordered list)
-// can tag those first 50 individually without a second query or ordering drift.
+// Fetches up to `limit` jobs newest-first. The first RECENT_JOBS_LIMIT of these
+// double as the "recent jobs" table, so the AI classification (over this same
+// ordered list) can tag them individually without a second query or ordering drift.
 async function querySampleJobs(model, limit = FAULT_SAMPLE_LIMIT) {
   const { rows } = await pool.query(
     `SELECT job_number, date_opened, customer_comment, technician_comment, job_action, status, stage
@@ -182,7 +183,7 @@ Return ONLY this JSON shape:
 "jobClassifications" must contain exactly ${recentCount} entries, one per job number from the first ${recentCount} jobs listed above.`;
 
   try {
-    const text = await callBedrock(prompt, 3000);
+    const text = await callBedrock(prompt, 6000);
     const parsed = parseJsonFromBedrock(text);
     return {
       faultCategories: Array.isArray(parsed.faultCategories) ? parsed.faultCategories : [],
@@ -230,7 +231,7 @@ async function handleFaultsDashboard(rawModel) {
     queryProductInfo(model),
   ]);
 
-  const recentJobs = sampleJobs.slice(0, 50);
+  const recentJobs = sampleJobs.slice(0, RECENT_JOBS_LIMIT);
   const { faultCategories, technicianOutcomes, jobClassifications } = await classifyFaults(model, sampleJobs, recentJobs.length);
   const sdCardWarning = computeSdCardWarning(technicianOutcomes);
 
