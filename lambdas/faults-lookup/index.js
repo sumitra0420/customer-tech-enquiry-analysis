@@ -269,6 +269,12 @@ async function handleFaultsDashboard(rawModel) {
   };
 }
 
+// Cognito authorizer decodes the caller's JWT and attaches its claims here.
+function getRequestingUser(event) {
+  const claims = event.requestContext?.authorizer?.claims;
+  return claims?.email || claims?.['cognito:username'] || 'unknown';
+}
+
 // ─── Main handler ──────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
   try {
@@ -278,9 +284,11 @@ exports.handler = async (event) => {
 
     const path = event.path || event.resource || '';
     const params = event.queryStringParameters || {};
+    const user = getRequestingUser(event);
 
     let result;
     if (path.endsWith('/search')) {
+      console.log(`Faults search: ${user} -> "${params.q || ''}"`);
       result = await handleModelSearch(params.q || '');
     } else {
       if (!params.model || !params.model.trim()) {
@@ -290,6 +298,7 @@ exports.handler = async (event) => {
           body: JSON.stringify({ error: 'Missing model parameter' }),
         };
       }
+      console.log(`Faults dashboard: ${user} -> ${params.model}`);
       result = await handleFaultsDashboard(params.model);
       if (result.error === 'not_found') {
         return { statusCode: 404, headers: CORS_HEADERS, body: JSON.stringify(result) };
