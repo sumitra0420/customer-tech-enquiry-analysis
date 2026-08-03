@@ -35,6 +35,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "aws-amplify": "^6.15.10",
     "aws-rum-web": "^2.1.0",
+    "chart.js": "^4.4.1",
     "express": "^5.1.0",
     "marked": "^17.0.1",
     "ngx-markdown": "^21.1.0",

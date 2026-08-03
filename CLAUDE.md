@@ -34,6 +34,7 @@ cd lambdas/<name> && zip function.zip index.py && aws lambda update-function-cod
 | `db-warmup` | Wakes RDS |
 | `receipt-extractor` | Receipt photo → Bedrock vision → DB |
 | `connote-db-upload` | Inserts new connote rows, skips exact duplicates (tracking + reference + sender) |
+| `faults-lookup` | Common Faults dashboard: SQL for KPIs/trend/jobs + one Bedrock call for fault-category & technician-outcome JSON |
 
 ### Python (no VPC, data processing only)
 | Name | Purpose |

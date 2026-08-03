@@ -22,4 +22,9 @@ export const routes: Routes = [
     loadComponent: () => import('./components/manual/manual.component').then(m => m.ManualComponent),
     canActivate: [authGuard]
   },
+  {
+    path: 'faults',
+    loadComponent: () => import('./components/faults/faults.component').then(m => m.FaultsComponent),
+    canActivate: [authGuard]
+  },
 ];

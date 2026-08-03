@@ -79,12 +79,16 @@ jobs:
       - name: Install connote-db-upload dependencies
         run: cd lambdas/connote-db-upload && npm ci
 
+      - name: Install faults-lookup dependencies
+        run: cd lambdas/faults-lookup && npm ci
+
       - name: Package Lambdas
         run: |
           cd lambdas/analyse-enquiry && zip -r function.zip index.js node_modules/
           cd ../db-warmup && zip -r function.zip index.js node_modules/
           cd ../db-restore && zip -r function.zip index.js node_modules/
           cd ../connote-db-upload && zip -r function.zip index.js node_modules/
+          cd ../faults-lookup && zip -r function.zip index.js node_modules/
           cd ../connote-cleaning && zip -r function.zip index.py
           cd ../repair-data-cleaning && zip -r function.zip index.py
           cd ../customer-cleaning && zip -r function.zip index.py
@@ -121,6 +125,12 @@ jobs:
           aws lambda update-function-code \
             --function-name ${{ secrets.PERSONAL_PROJECT_NAME }}-connote-db-upload \
             --zip-file fileb://lambdas/connote-db-upload/function.zip
+
+      - name: Deploy faults-lookup Lambda
+        run: |
+          aws lambda update-function-code \
+            --function-name ${{ secrets.PERSONAL_PROJECT_NAME }}-faults-lookup \
+            --zip-file fileb://lambdas/faults-lookup/function.zip
 
       - name: Deploy Python Lambdas
         run: |

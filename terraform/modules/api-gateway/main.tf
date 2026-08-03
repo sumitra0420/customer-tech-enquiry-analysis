@@ -215,6 +215,136 @@ resource "aws_api_gateway_integration_response" "options_receipt" {
   }
 }
 
+# /faults resource
+resource "aws_api_gateway_resource" "faults" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
+  path_part   = "faults"
+}
+
+# --- GET /faults ---
+resource "aws_api_gateway_method" "faults_dashboard" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.faults.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+}
+
+resource "aws_api_gateway_integration" "faults_dashboard" {
+  rest_api_id             = aws_api_gateway_rest_api.main.id
+  resource_id             = aws_api_gateway_resource.faults.id
+  http_method             = aws_api_gateway_method.faults_dashboard.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.lambda_invoke_arns["faults-lookup"]
+}
+
+# --- CORS: OPTIONS /faults ---
+resource "aws_api_gateway_method" "options_faults" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.faults.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "options_faults" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.faults.id
+  http_method = aws_api_gateway_method.options_faults.http_method
+  type        = "MOCK"
+  request_templates = { "application/json" = "{\"statusCode\": 200}" }
+}
+
+resource "aws_api_gateway_method_response" "options_faults" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.faults.id
+  http_method = aws_api_gateway_method.options_faults.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "options_faults" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.faults.id
+  http_method = aws_api_gateway_method.options_faults.http_method
+  status_code = aws_api_gateway_method_response.options_faults.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
+# /faults/search resource
+resource "aws_api_gateway_resource" "faults_search" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  parent_id   = aws_api_gateway_resource.faults.id
+  path_part   = "search"
+}
+
+# --- GET /faults/search ---
+resource "aws_api_gateway_method" "faults_search" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.faults_search.id
+  http_method   = "GET"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
+}
+
+resource "aws_api_gateway_integration" "faults_search" {
+  rest_api_id             = aws_api_gateway_rest_api.main.id
+  resource_id             = aws_api_gateway_resource.faults_search.id
+  http_method             = aws_api_gateway_method.faults_search.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = var.lambda_invoke_arns["faults-lookup"]
+}
+
+# --- CORS: OPTIONS /faults/search ---
+resource "aws_api_gateway_method" "options_faults_search" {
+  rest_api_id   = aws_api_gateway_rest_api.main.id
+  resource_id   = aws_api_gateway_resource.faults_search.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "options_faults_search" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.faults_search.id
+  http_method = aws_api_gateway_method.options_faults_search.http_method
+  type        = "MOCK"
+  request_templates = { "application/json" = "{\"statusCode\": 200}" }
+}
+
+resource "aws_api_gateway_method_response" "options_faults_search" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.faults_search.id
+  http_method = aws_api_gateway_method.options_faults_search.http_method
+  status_code = "200"
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = true
+    "method.response.header.Access-Control-Allow-Methods" = true
+    "method.response.header.Access-Control-Allow-Origin"  = true
+  }
+}
+
+resource "aws_api_gateway_integration_response" "options_faults_search" {
+  rest_api_id = aws_api_gateway_rest_api.main.id
+  resource_id = aws_api_gateway_resource.faults_search.id
+  http_method = aws_api_gateway_method.options_faults_search.http_method
+  status_code = aws_api_gateway_method_response.options_faults_search.status_code
+  response_parameters = {
+    "method.response.header.Access-Control-Allow-Headers" = "'Content-Type,Authorization'"
+    "method.response.header.Access-Control-Allow-Methods" = "'GET,OPTIONS'"
+    "method.response.header.Access-Control-Allow-Origin"  = "'*'"
+  }
+}
+
 # Lambda permissions for API Gateway
 resource "aws_lambda_permission" "api_gateway" {
   statement_id  = "AllowAPIGatewayInvoke-analyse-enquiry"
@@ -240,6 +370,14 @@ resource "aws_lambda_permission" "api_gateway_receipt" {
   source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
 }
 
+resource "aws_lambda_permission" "api_gateway_faults" {
+  statement_id  = "AllowAPIGatewayInvoke-faults-lookup"
+  action        = "lambda:InvokeFunction"
+  function_name = var.lambda_function_arns["faults-lookup"]
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.main.execution_arn}/*/*"
+}
+
 # Deployment
 resource "aws_api_gateway_deployment" "main" {
   rest_api_id = aws_api_gateway_rest_api.main.id
@@ -255,6 +393,12 @@ resource "aws_api_gateway_deployment" "main" {
       aws_api_gateway_resource.receipt,
       aws_api_gateway_method.receipt,
       aws_api_gateway_integration.receipt,
+      aws_api_gateway_resource.faults,
+      aws_api_gateway_method.faults_dashboard,
+      aws_api_gateway_integration.faults_dashboard,
+      aws_api_gateway_resource.faults_search,
+      aws_api_gateway_method.faults_search,
+      aws_api_gateway_integration.faults_search,
     ]))
   }
 

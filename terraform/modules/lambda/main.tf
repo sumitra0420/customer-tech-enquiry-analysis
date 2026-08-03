@@ -112,6 +112,7 @@ locals {
     "db-restore"         = "lambdas/db-restore"         # DB restore from S3
     "receipt-extractor"  = "lambdas/receipt-extractor"  # Receipt photo → Bedrock vision → Aurora
     "connote-db-upload"  = "lambdas/connote-db-upload"  # Insert new connote rows from cleaned CSV
+    "faults-lookup"      = "lambdas/faults-lookup"      # Common Faults dashboard: KPIs/trend/jobs + Bedrock category classification
   }
 
   common_env_vars = {
@@ -399,8 +400,8 @@ resource "aws_lambda_function" "functions" {
   role          = aws_iam_role.lambda.arn
   handler       = "index.handler"
   runtime       = "nodejs22.x"
-  timeout       = each.key == "analyse-enquiry" ? 60 : each.key == "db-restore" ? 300 : each.key == "receipt-extractor" ? 60 : each.key == "db-warmup" ? 60 : each.key == "connote-db-upload" ? 120 : 30
-  memory_size   = each.key == "analyse-enquiry" || each.key == "receipt-extractor" ? 512 : 256
+  timeout       = each.key == "analyse-enquiry" ? 60 : each.key == "db-restore" ? 300 : each.key == "receipt-extractor" ? 60 : each.key == "db-warmup" ? 60 : each.key == "connote-db-upload" ? 120 : each.key == "faults-lookup" ? 60 : 30
+  memory_size   = each.key == "analyse-enquiry" || each.key == "receipt-extractor" || each.key == "faults-lookup" ? 512 : 256
 
   filename         = data.archive_file.placeholder.output_path
   source_code_hash = data.archive_file.placeholder.output_base64sha256
