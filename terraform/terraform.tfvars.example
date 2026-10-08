@@ -1,7 +1,17 @@
-aws_region       = "ap-southeast-2"                                                                                      
-project_name     = "tech-enquiry"                                                                                        
-environment      = "prod"                                                                                                
-db_name          = "enquiries"                                                                                           
-db_username      = "dbadmin"                                                                                             
-db_password      = "CHANGE_ME_TO_A_STRONG_PASSWORD"                                                                      
-bedrock_model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+aws_region       = "ap-southeast-2"
+project_name     = "tech-enquiry"
+environment      = "prod"
+db_name          = "enquiries"
+db_username      = "dbadmin"
+db_password      = "CHANGE_ME_TO_A_STRONG_PASSWORD"
+bedrock_model_id = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+# true = invite-only (admin creates users); false = self-registration allowed
+invite_only = false
+
+# Azure AD app registration used to read the DAILY CONNOTE.xlsx from SharePoint
+# (sharepoint-sync Lambda). Register your own app in your own tenant - do not
+# reuse credentials from another organization's tenant.
+sharepoint_tenant_id     = "CHANGE_ME_AZURE_TENANT_ID"
+sharepoint_client_id     = "CHANGE_ME_AZURE_APP_CLIENT_ID"
+sharepoint_client_secret = "CHANGE_ME_AZURE_APP_CLIENT_SECRET"
