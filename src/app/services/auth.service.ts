@@ -123,7 +123,7 @@ export class AuthService {
   /**
    * Sign in a user
    */
-  async signIn(email: string, password: string): Promise<{ success: boolean; message: string }> {
+  async signIn(email: string, password: string): Promise<{ success: boolean; message: string; missingAttributes?: string[] }> {
     try {
       const signInInput: SignInInput = {
         username: email,
@@ -138,7 +138,11 @@ export class AuthService {
       }
 
       if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
-        return { success: false, message: 'NEW_PASSWORD_REQUIRED' };
+        return {
+          success: false,
+          message: 'NEW_PASSWORD_REQUIRED',
+          missingAttributes: nextStep.missingAttributes,
+        };
       }
 
       return { success: false, message: 'Sign in incomplete. Please complete additional steps.' };
@@ -151,11 +155,16 @@ export class AuthService {
   }
 
   /**
-   * Complete new password challenge (invited users on first login)
+   * Complete new password challenge (invited users on first login).
+   * `name` is required when Cognito reports it as a missing attribute
+   * (e.g. the inviting admin left "Name" blank when creating the user).
    */
-  async confirmNewPassword(newPassword: string): Promise<{ success: boolean; message: string }> {
+  async confirmNewPassword(newPassword: string, name?: string): Promise<{ success: boolean; message: string }> {
     try {
-      const { isSignedIn } = await confirmSignIn({ challengeResponse: newPassword });
+      const { isSignedIn } = await confirmSignIn({
+        challengeResponse: newPassword,
+        options: name ? { userAttributes: { name } } : undefined,
+      });
       if (isSignedIn) {
         await this.checkAuthStatus();
         return { success: true, message: 'Password updated successfully!' };

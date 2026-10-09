@@ -16,8 +16,10 @@ export class AuthComponent {
   needsVerification = signal(false);
   showPasswordStep = signal(false);
   needsNewPassword = signal(false);
+  needsNamePassword = signal(false);
   newPassword = signal('');
   confirmNewPassword = signal('');
+  newPasswordName = signal('');
   showForgotPassword = signal(false);
   forgotPasswordCodeSent = signal(false);
   resetCode = signal('');
@@ -68,6 +70,7 @@ export class AuthComponent {
       this.router.navigate(['/analyse']);
     } else if (result.message === 'NEW_PASSWORD_REQUIRED') {
       this.needsNewPassword.set(true);
+      this.needsNamePassword.set(!!result.missingAttributes?.includes('name'));
       this.errorMessage.set('');
     } else {
       this.errorMessage.set(result.message);
@@ -80,9 +83,16 @@ export class AuthComponent {
       this.errorMessage.set('Passwords do not match');
       return;
     }
+    if (this.needsNamePassword() && !this.newPasswordName().trim()) {
+      this.errorMessage.set('Please enter your name');
+      return;
+    }
     this.errorMessage.set('');
     this.isLoading.set(true);
-    const result = await this.authService.confirmNewPassword(this.newPassword());
+    const result = await this.authService.confirmNewPassword(
+      this.newPassword(),
+      this.needsNamePassword() ? this.newPasswordName() : undefined
+    );
     this.isLoading.set(false);
     if (result.success) {
       this.router.navigate(['/analyse']);
