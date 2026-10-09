@@ -5,6 +5,31 @@ resource "aws_cognito_user_pool" "main" {
   auto_verified_attributes = ["email"]
   admin_create_user_config {
     allow_admin_create_user_only = var.invite_only
+
+    invite_message_template {
+      email_subject = "You're invited to Uniden AI Enquiry Analysis"
+      email_message = <<-EOT
+        <p>Hi,</p>
+        <p>You've been invited to Uniden AI Enquiry Analysis.</p>
+        <p>Username: <strong>{username}</strong><br>
+        Temporary password: <strong>{####}</strong></p>
+        <p>Sign in and you'll be asked to set your own password.</p>
+        <p><a href="https://www.uniden.tech">https://www.uniden.tech</a></p>
+      EOT
+      sms_message   = "Your Uniden AI Enquiry Analysis username is {username} and temporary password is {####}"
+    }
+  }
+
+  verification_message_template {
+    default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = "Your Uniden AI Enquiry Analysis verification code"
+    email_message        = <<-EOT
+      <p>Hi,</p>
+      <p>Your verification code for Uniden AI Enquiry Analysis is: <strong>{####}</strong></p>
+      <p>If you didn't request this, you can ignore this email.</p>
+      <p><a href="https://www.uniden.tech">https://www.uniden.tech</a></p>
+    EOT
+    sms_message           = "Your Uniden AI Enquiry Analysis verification code is {####}"
   }
 
   password_policy {
